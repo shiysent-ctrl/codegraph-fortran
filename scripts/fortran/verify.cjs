@@ -82,7 +82,10 @@ async function verify(bundle) {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(bundle, relative))).digest('hex');
     assert.equal(actual, expected, `发行文件校验失败：${relative}`);
   }
-  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'cgfortran-verify-'));
+  // Windows 的 TEMP 可能使用 RUNNER~1 形式；libuv 监听返回完整路径时会断言失败。
+  // native realpath 统一为实际长路径，索引、监听和清理均使用同一路径。
+  const tempRoot = fs.realpathSync.native(os.tmpdir());
+  const project = fs.realpathSync.native(fs.mkdtempSync(path.join(tempRoot, 'cgfortran-verify-')));
   let success = false;
   try {
     for (const name of fs.readdirSync(fixtureRoot)) {
@@ -147,7 +150,7 @@ console.log(JSON.stringify({files:files.length,nodes:db.prepare('SELECT COUNT(*)
       fixedFormSample: true, fixedFormComments: true, crlf: true, scopes: true, releaseIntegrity: true, mcp: protocol };
   } finally {
     // 删除范围仅限本次 mkdtemp 创建的测试目录，失败则保留用于诊断。
-    if (success && fs.realpathSync(project).startsWith(fs.realpathSync(os.tmpdir()) + path.sep)
+    if (success && fs.realpathSync.native(project).startsWith(tempRoot + path.sep)
       && path.basename(project).startsWith('cgfortran-verify-')) fs.rmSync(project, { recursive: true, maxRetries: 10, retryDelay: 200 });
     else if (!success) console.error(`验证失败，保留临时项目：${project}`);
   }
