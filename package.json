@@ -1,15 +1,15 @@
 {
-  "name": "@colbymchenry/codegraph",
-  "version": "1.6.1",
+  "name": "@shiysent-ctrl/codegraph-fortran",
+  "version": "1.6.1-fortran.1",
   "description": "Supercharge AI coding agents with semantic code intelligence — surgical context, fewer tool calls, faster answers. 100% local.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/colbymchenry/codegraph.git"
+    "url": "git+https://github.com/shiysent-ctrl/codegraph-fortran.git"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "codegraph": "./dist/bin/codegraph.js"
+    "codegraph-fortran": "./dist/bin/codegraph.js"
   },
   "files": [
     "dist",
@@ -64,5 +64,6 @@
   },
   "engines": {
     "node": ">=20.0.0 <25.0.0"
-  }
+  },
+  "private": true
 }

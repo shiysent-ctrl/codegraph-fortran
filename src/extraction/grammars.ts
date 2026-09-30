@@ -50,12 +50,21 @@ const WASM_GRAMMAR_FILES: Record<GrammarLanguage, string> = {
   terraform: 'tree-sitter-terraform.wasm',
   arkts: 'tree-sitter-arkts.wasm',
   nix: 'tree-sitter-nix.wasm',
+  fortran: 'tree-sitter-fortran.wasm',
 };
 
 /**
  * File extension to Language mapping
  */
 export const EXTENSION_MAP: Record<string, Language> = {
+  '.f': 'fortran',
+  '.f90': 'fortran',
+  '.f95': 'fortran',
+  '.f03': 'fortran',
+  '.f08': 'fortran',
+  '.for': 'fortran',
+  '.ftn': 'fortran',
+  '.fpp': 'fortran',
   '.ts': 'typescript',
   '.tsx': 'tsx',
   // ESM/CJS TypeScript module extensions — parsed as TS (no JSX). (#366)
@@ -350,6 +359,8 @@ export async function initGrammars(): Promise<void> {
  * the vendored wasm together.
  */
 const VENDORED_WASM_LANGS: ReadonlySet<GrammarLanguage> = new Set([
+  // Pinned source and build receipt: third_party/fortran/manifest.json.
+  'fortran',
   'pascal', 'scala', 'lua', 'luau', 'csharp', 'r', 'cfml', 'cfscript', 'cfquery',
   'cobol', 'vbnet', 'erlang', 'terraform', 'arkts', 'nix',
   'typescript', 'tsx', 'javascript', 'jsx', 'java', 'python', 'go',
@@ -759,6 +770,7 @@ export function getLanguageDisplayName(language: Language): string {
     swift: 'Swift',
     kotlin: 'Kotlin',
     dart: 'Dart',
+    fortran: 'Fortran',
     svelte: 'Svelte',
     vue: 'Vue',
     astro: 'Astro',

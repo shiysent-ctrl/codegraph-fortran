@@ -12,6 +12,12 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### New Features
+
+- Fortran modules, routines and direct calls can now be indexed and explored with complete routine source.
+- Windows users can install this fork alongside CodeGraph with a separate launcher, index and MCP configuration.
+
+
 ### Fixes
 
 - In C and C++, a qualified name like `fmt::format` now reaches a declaration inside a namespace the library opens with a macro, like fmt's `FMT_BEGIN_NAMESPACE`, pybind11's `PYBIND11_NAMESPACE_BEGIN(…)` or rapidjson's and spdlog's `…_NAMESPACE_BEGIN`. It also works through a namespace alias like `namespace py = pybind11;`. On fmt, 1,728 `fmt::format(…)` calls used to link to nothing, and so did about 1,400 `py::…` calls on pybind11.

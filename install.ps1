@@ -1,91 +1,79 @@
-# CodeGraph standalone installer for Windows (PowerShell).
-#
-# Downloads a self-contained bundle (a vendored Node runtime + the app) from
-# GitHub Releases. No Node.js, no build tools required.
-#
-#   irm https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.ps1 | iex
-#
-# Upgrade with `codegraph upgrade` (or just re-run this). To uninstall: remove
-# $env:LOCALAPPDATA\codegraph and drop its \current\bin entry from your user PATH.
-#
-# Environment:
-#   CODEGRAPH_VERSION      release tag to install (default: latest)
-#   CODEGRAPH_INSTALL_DIR  install location (default: %LOCALAPPDATA%\codegraph)
-
+<#
+功能：安装固定的 Windows x64 CodeGraph Fortran 发行包。
+输入：可选独立目标、离线 ZIP 与 SHA256SUMS；输出：独立安装及 MCP 片段。
+依赖：PowerShell/.NET；运行使用随包 Node。不会修改 PATH、全局 CodeGraph 或客户端。
+#>
+[CmdletBinding()]
+param(
+    [string]$Destination,
+    [string]$Archive,
+    [string]$ChecksumFile
+)
 $ErrorActionPreference = 'Stop'
-$repo = 'colbymchenry/codegraph'
-$installDir = if ($env:CODEGRAPH_INSTALL_DIR) { $env:CODEGRAPH_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'codegraph' }
-
-# 1. Detect architecture -> target matching the release archives.
-$arch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64') { 'arm64' } else { 'x64' }
-$target = "win32-$arch"
-
-# 2. Resolve the version (latest release unless pinned).
-$version = $env:CODEGRAPH_VERSION
-if (-not $version) {
-  $version = (Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest").tag_name
+$taskVersion = '1.6.1-fortran.1'
+$taskRepo = 'shiysent-ctrl/codegraph-fortran'
+$taskAssetName = 'codegraph-fortran-win32-x64.zip'
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [Environment]::Is64BitOperatingSystem -ne $true) {
+    throw 'This release supports Windows x64 only.'
 }
-if (-not $version) { throw "codegraph: could not resolve latest version; set CODEGRAPH_VERSION." }
-
-# 3. Download + extract the bundle into a stable 'current' dir (overwritten on upgrade).
-$url = "https://github.com/$repo/releases/download/$version/codegraph-$target.zip"
-Write-Host "Installing CodeGraph $version ($target)..."
-$tmp = Join-Path $env:TEMP ("cg-" + [guid]::NewGuid().ToString())
-New-Item -ItemType Directory -Force -Path $tmp | Out-Null
-$zip = Join-Path $tmp 'cg.zip'
-Invoke-WebRequest -Uri $url -OutFile $zip
-
-$dest = Join-Path $installDir 'current'
-if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-New-Item -ItemType Directory -Force -Path $dest | Out-Null
-Expand-Archive -Path $zip -DestinationPath $dest -Force
-# Archives contain a top-level codegraph-<target>\ dir; flatten it.
-$inner = Join-Path $dest "codegraph-$target"
-if (Test-Path $inner) {
-  Get-ChildItem -Force $inner | Move-Item -Destination $dest -Force
-  Remove-Item -Recurse -Force $inner
-}
-Remove-Item -Recurse -Force $tmp
-
-# 4. Put the launcher dir on the user's PATH.
-$binDir = Join-Path $dest 'bin'
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if (($userPath -split ';') -notcontains $binDir) {
-  [Environment]::SetEnvironmentVariable('Path', "$binDir;$userPath", 'User')
-  Write-Host "Added $binDir to your PATH (restart your terminal to pick it up)."
-}
-
-Write-Host "Installed to $dest"
-
-# 5. Warn if a different codegraph earlier on PATH will shadow this install.
-# Most often a stale `npm i -g @colbymchenry/codegraph`, whose launcher keeps
-# running its own version-pinned bundle — so `codegraph --version` disagrees
-# with what we just installed (issue #1071). Check both the persisted PATH a
-# fresh shell sees (Machine + User) and this session's PATH (catches dirs a
-# shell profile injects, e.g. conda / npm).
-$expected = Join-Path $binDir 'codegraph.cmd'
-function Find-FirstCodegraph([string]$pathStr) {
-  foreach ($dir in ($pathStr -split ';')) {
-    if (-not $dir) { continue }
-    foreach ($leaf in @('codegraph.cmd', 'codegraph.exe', 'codegraph.bat', 'codegraph.ps1')) {
-      $cand = Join-Path $dir $leaf
-      if (Test-Path -LiteralPath $cand) { return $cand }
+$taskCpu = [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITEW6432')
+if (-not $taskCpu) { $taskCpu = [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITECTURE') }
+if ($taskCpu -ne 'AMD64') { throw 'This release supports Windows x64 only.' }
+if (-not $Destination) { $Destination = Join-Path $env:LOCALAPPDATA "CodeGraphFortran\$taskVersion" }
+$taskTarget = [IO.Path]::GetFullPath($Destination)
+if (Test-Path -LiteralPath $taskTarget) { throw "Destination exists; choose a new directory: $taskTarget" }
+$taskParent = Split-Path -Parent $taskTarget
+if (-not (Test-Path -LiteralPath $taskParent)) { New-Item -ItemType Directory -Path $taskParent -Force | Out-Null }
+$taskStage = Join-Path $taskParent ('.cgfortran-install-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $taskStage | Out-Null
+try {
+    if ($Archive) {
+        if (-not $ChecksumFile) { throw 'Offline install requires -ChecksumFile SHA256SUMS.' }
+        $taskZip = (Resolve-Path -LiteralPath $Archive).Path
+        $taskSums = Get-Content -LiteralPath $ChecksumFile -Raw
+    } else {
+        if ($ChecksumFile) { throw '-ChecksumFile requires -Archive.' }
+        $taskBaseUrl = "https://github.com/$taskRepo/releases/download/v$taskVersion"
+        $taskZip = Join-Path $taskStage $taskAssetName
+        $taskSumsPath = Join-Path $taskStage 'SHA256SUMS'
+        Invoke-WebRequest -UseBasicParsing -Uri "$taskBaseUrl/SHA256SUMS" -OutFile $taskSumsPath
+        Invoke-WebRequest -UseBasicParsing -Uri "$taskBaseUrl/$taskAssetName" -OutFile $taskZip
+        $taskSums = Get-Content -LiteralPath $taskSumsPath -Raw
     }
-  }
-  return $null
+    $taskMatch = [regex]::Matches($taskSums, ('(?m)^([a-fA-F0-9]{64})[ \t]+\*?' + [regex]::Escape($taskAssetName) + '\r?$'))
+    if ($taskMatch.Count -ne 1) { throw 'Missing or ambiguous release checksum.' }
+    $taskActual = (Get-FileHash -LiteralPath $taskZip -Algorithm SHA256).Hash
+    if ($taskActual -ine $taskMatch[0].Groups[1].Value) { throw 'Release ZIP SHA-256 mismatch.' }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $taskZipReader = [IO.Compression.ZipFile]::OpenRead($taskZip)
+    $taskExpand = Join-Path $taskStage 'expanded'
+    $taskPrefix = [IO.Path]::GetFullPath($taskExpand) + [IO.Path]::DirectorySeparatorChar
+    try {
+        foreach ($taskEntry in $taskZipReader.Entries) {
+            $taskResolved = [IO.Path]::GetFullPath((Join-Path $taskExpand $taskEntry.FullName))
+            if (-not $taskResolved.StartsWith($taskPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe ZIP entry path.' }
+        }
+    } finally { $taskZipReader.Dispose() }
+    Expand-Archive -LiteralPath $taskZip -DestinationPath $taskExpand
+    $taskBundle = Join-Path $taskExpand 'codegraph-fortran-win32-x64'
+    $taskDescriptor = Get-Content -LiteralPath (Join-Path $taskBundle 'fortran-release.json') -Raw | ConvertFrom-Json
+    if ($taskDescriptor.version -ne $taskVersion -or $taskDescriptor.repository -ne $taskRepo) { throw 'Unexpected fork release identity.' }
+    & (Join-Path $taskBundle 'node.exe') --liftoff-only --disable-warning=ExperimentalWarning (Join-Path $taskBundle 'validation\verify.cjs') $taskBundle
+    if ($LASTEXITCODE -ne 0) { throw 'Fortran CLI/MCP verification failed.' }
+    & (Join-Path $taskBundle 'node.exe') (Join-Path $taskBundle 'validation\write-config.cjs') $taskBundle $taskTarget
+    if ($LASTEXITCODE -ne 0) { throw 'MCP configuration generation failed.' }
+    if (Test-Path -LiteralPath $taskTarget) { throw 'Destination appeared during installation; refusing to overwrite.' }
+    Move-Item -LiteralPath $taskBundle -Destination $taskTarget
+    # 仅清理自己创建的暂存目录；目标必须仍在已核实的父目录中。
+    $taskResolvedStage = [IO.Path]::GetFullPath($taskStage)
+    $taskResolvedParent = [IO.Path]::GetFullPath($taskParent).TrimEnd('\') + '\'
+    if ($taskResolvedStage.StartsWith($taskResolvedParent, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path -Leaf $taskResolvedStage).StartsWith('.cgfortran-install-')) {
+        Remove-Item -LiteralPath $taskResolvedStage -Recurse -Force
+    }
+    Write-Output "Installed: $taskTarget"
+    Write-Output "CLI: $(Join-Path $taskTarget 'bin\codegraph-fortran.cmd')"
+    Write-Output 'MCP configuration snippets were generated; no client configuration was changed.'
+} catch {
+    Write-Warning "Installation failed. Diagnostics retained in: $taskStage"
+    throw
 }
-$machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-$freshPath = ((@($machinePath, [Environment]::GetEnvironmentVariable('Path', 'User')) | Where-Object { $_ }) -join ';')
-$shadow = $null
-foreach ($winner in @((Find-FirstCodegraph $env:Path), (Find-FirstCodegraph $freshPath))) {
-  if ($winner -and ($winner -ne $expected)) { $shadow = $winner; break }
-}
-if ($shadow) {
-  Write-Warning "Another codegraph is earlier on your PATH and will run instead of this install:"
-  Write-Warning "  $shadow"
-  Write-Warning "  (this install: $expected)"
-  Write-Warning "If 'codegraph --version' shows an unexpected version, remove the other copy"
-  Write-Warning "(e.g. 'npm rm -g @colbymchenry/codegraph') or put '$binDir' first on your PATH."
-}
-
-Write-Host "Run: codegraph --help"
