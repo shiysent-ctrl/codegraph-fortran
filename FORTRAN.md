@@ -7,21 +7,21 @@
 从 [v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 下载 `install.ps1`，在 PowerShell 中执行：
 
 ```powershell
-.\install.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.2`，运行使用发行包自带 Node，不需要安装 Node、npm 或 Fortran 编译器。脚本从本 fork 的固定 Release 下载 ZIP，校验 SHA-256，再实际验证解析、索引、CLI 和 MCP。已有目录不会被覆盖；失败保留暂存诊断目录。
+上述调用只为本次进程允许执行脚本，不修改系统执行策略。默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.2`，运行使用发行包自带 Node，不需要安装 Node、npm 或 Fortran 编译器。脚本从本 fork 的固定 Release 下载 ZIP，校验 SHA-256，再实际验证解析、索引、CLI 和 MCP。已有目录不会被覆盖；失败保留暂存诊断目录。
 
 指定位置：
 
 ```powershell
-.\install.ps1 -Destination "D:\Tools\CodeGraphFortran\1.6.1-fortran.2"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Destination "D:\Tools\CodeGraphFortran\1.6.1-fortran.2"
 ```
 
 离线下载同一 Release 的 ZIP 和 `SHA256SUMS`，然后执行：
 
 ```powershell
-.\install.ps1 -Archive ".\codegraph-fortran-win32-x64.zip" -ChecksumFile ".\SHA256SUMS"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive ".\codegraph-fortran-win32-x64.zip" -ChecksumFile ".\SHA256SUMS"
 ```
 
 ## 初始化项目并接入 MCP
