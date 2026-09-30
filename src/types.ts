@@ -119,6 +119,8 @@ export const LANGUAGES = [
   'erlang',
   'terraform',
   'unknown',
+  // Append only: keep the existing native-kernel language indices stable.
+  'fortran',
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number];

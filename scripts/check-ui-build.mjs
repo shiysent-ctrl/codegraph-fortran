@@ -108,6 +108,7 @@ const wasmDir = join(root, 'dist', 'extraction', 'wasm');
  * rather than resolved out of node_modules.
  */
 const GATE_GRAMMARS = [
+  'tree-sitter-fortran.wasm',
   'tree-sitter-typescript.wasm',
   'tree-sitter-tsx.wasm',
   'tree-sitter-javascript.wasm',

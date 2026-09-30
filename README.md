@@ -1,3 +1,11 @@
+# CodeGraph Fortran
+
+Windows x64 Fortran fork with an isolated installer and MCP configuration.
+
+**Install and use: [FORTRAN.md](FORTRAN.md).** The source, fixtures and release workflow in this repository are the single maintenance source. The upstream npm package does not contain this fork's Fortran support.
+
+---
+
 <div align="center">
 
 # CodeGraph

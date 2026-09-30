@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/stadelmanma/tree-sitter-fortran",
+  "commit": "2bc0220f34ca660ec9571c54ea57ed5363338de1",
+  "license": "MIT",
+  "treeSitterCli": "0.25.10",
+  "emscripten": "3.1.74",
+  "emsdkCommit": "e566f7bdcc7735f44037911c24b87a58a3c93145",
+  "abi": 15,
+  "commands": [
+    "tree-sitter generate --abi 15",
+    "tree-sitter build --wasm"
+  ],
+  "sha256": "79abba09aae2cb8d6876cb6bde243268990e9a5171bac0fb959c012b372009ab",
+  "builtOn": "Windows x64",
+  "buildDate": "2026-10-01"
+}
