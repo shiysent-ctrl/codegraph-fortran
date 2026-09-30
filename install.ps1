@@ -1,4 +1,4 @@
-<#
+﻿<#
 功能：安装固定的 Windows x64 CodeGraph Fortran 发行包。
 输入：可选独立目标、离线 ZIP 与 SHA256SUMS；输出：独立安装及 MCP 片段。
 依赖：PowerShell/.NET；运行使用随包 Node。不会修改 PATH、全局 CodeGraph 或客户端。
@@ -10,7 +10,7 @@ param(
     [string]$ChecksumFile
 )
 $ErrorActionPreference = 'Stop'
-$taskVersion = '1.6.1-fortran.1'
+$taskVersion = '1.6.1-fortran.2'
 $taskRepo = 'shiysent-ctrl/codegraph-fortran'
 $taskAssetName = 'codegraph-fortran-win32-x64.zip'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [Environment]::Is64BitOperatingSystem -ne $true) {
