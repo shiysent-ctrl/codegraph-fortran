@@ -12,6 +12,10 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixes
+
+- Windows PowerShell 5.1 now completes the Fortran installer correctly when reading its Chinese comments.
+
 ### New Features
 
 - Fortran modules, routines and direct calls can now be indexed and explored with complete routine source.

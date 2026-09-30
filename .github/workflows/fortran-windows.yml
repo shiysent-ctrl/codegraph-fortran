@@ -42,6 +42,8 @@ jobs:
         run: node scripts/fortran/build-release.cjs --archive "$env:RUNNER_TEMP\colbymchenry-codegraph-win32-x64-1.6.1.tgz"
       - name: Offline installer acceptance
         run: ./install.ps1 -Archive ./release/fortran/codegraph-fortran-win32-x64.zip -ChecksumFile ./release/fortran/SHA256SUMS -Destination "$env:RUNNER_TEMP\Fortran Chinese 中文\bundle"
+      - name: Windows PowerShell 5.1 installer acceptance
+        run: node scripts/fortran/check-powershell51.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: codegraph-fortran-windows

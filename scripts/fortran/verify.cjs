@@ -77,7 +77,7 @@ async function mcp(bundle, project) {
 async function verify(bundle) {
   bundle = fs.realpathSync(bundle);
   const receipt = JSON.parse(fs.readFileSync(path.join(bundle, 'fortran-release.json'), 'utf8'));
-  assert.equal(receipt.version, '1.6.1-fortran.1');
+  assert.equal(receipt.version, '1.6.1-fortran.2');
   for (const [relative, expected] of Object.entries(receipt.files)) {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(bundle, relative))).digest('hex');
     assert.equal(actual, expected, `发行文件校验失败：${relative}`);

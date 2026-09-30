@@ -1,21 +1,21 @@
 # CodeGraph Fortran 安装与使用
 
-本 fork 是 Fortran 提取器、语法资产、样例和发行脚本的单一维护源。第一版为 **1.6.1-fortran.1，Windows x64 预发布版**。上游 CodeGraph 的其他语言继续使用 WASM 提取路径；本发行包没有原生 Rust 内核。它保留独立安装、启动器、索引和 MCP 配置，不修改全局 CodeGraph。
+本 fork 是 Fortran 提取器、语法资产、样例和发行脚本的单一维护源。当前版本为 **1.6.1-fortran.2，Windows x64 预发布版**。上游 CodeGraph 的其他语言继续使用 WASM 提取路径；本发行包没有原生 Rust 内核。它保留独立安装、启动器、索引和 MCP 配置，不修改全局 CodeGraph。
 
 ## 安装
 
-从 [v1.6.1-fortran.1](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.1) 下载 `install.ps1`，在 PowerShell 中执行：
+从 [v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 下载 `install.ps1`，在 PowerShell 中执行：
 
 ```powershell
 .\install.ps1
 ```
 
-默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.1`，运行使用发行包自带 Node，不需要安装 Node、npm 或 Fortran 编译器。脚本从本 fork 的固定 Release 下载 ZIP，校验 SHA-256，再实际验证解析、索引、CLI 和 MCP。已有目录不会被覆盖；失败保留暂存诊断目录。
+默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.2`，运行使用发行包自带 Node，不需要安装 Node、npm 或 Fortran 编译器。脚本从本 fork 的固定 Release 下载 ZIP，校验 SHA-256，再实际验证解析、索引、CLI 和 MCP。已有目录不会被覆盖；失败保留暂存诊断目录。
 
 指定位置：
 
 ```powershell
-.\install.ps1 -Destination "D:\Tools\CodeGraphFortran\1.6.1-fortran.1"
+.\install.ps1 -Destination "D:\Tools\CodeGraphFortran\1.6.1-fortran.2"
 ```
 
 离线下载同一 Release 的 ZIP 和 `SHA256SUMS`，然后执行：
@@ -29,7 +29,7 @@
 使用独立启动器初始化明确选择的 Fortran 项目：
 
 ```powershell
-& "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.1\bin\codegraph-fortran.cmd" init "D:\Research\FortranProject" --yes
+& "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2\bin\codegraph-fortran.cmd" init "D:\Research\FortranProject" --yes
 ```
 
 索引保存在该项目的 `.codegraph-fortran`。后续使用相同启动器的 `index` 命令重建；不要对知识库根目录初始化，也不要用全局 `codegraph` 操作适配版索引。
@@ -43,7 +43,7 @@
 重新验收已安装 bundle：
 
 ```powershell
-& "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.1\node.exe" --liftoff-only "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.1\validation\verify.cjs" "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.1"
+& "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2\node.exe" --liftoff-only "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2\validation\verify.cjs" "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2"
 ```
 
 验收使用临时项目，不访问研究工程。它验证模块、函数、子程序、内部过程、派生类型、常量、接口作用域、模块导入和不同大小写的直接调用，并检查完整子程序源码及真实 MCP search/explore。`verification.json` 保存构建时实际结果，`fortran-release.json` 记录源码 commit、语法来源和发行文件校验值。
