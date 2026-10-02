@@ -13,7 +13,7 @@ param(
     [switch]$NoPath
 )
 $ErrorActionPreference = 'Stop'
-$taskVersion = if ($Version) { $Version.TrimStart('v') } elseif ($env:CODEGRAPH_VERSION) { $env:CODEGRAPH_VERSION.TrimStart('v') } else { '1.6.1-fortran.3' }
+$taskVersion = if ($Version) { $Version.TrimStart('v') } elseif ($env:CODEGRAPH_VERSION) { $env:CODEGRAPH_VERSION.TrimStart('v') } else { '1.6.1-fortran.4' }
 if ($taskVersion -notmatch '^\d+\.\d+\.\d+-fortran\.\d+$') { throw 'Choose a Fortran fork release version.' }
 $taskRepo = 'shiysent-ctrl/codegraph-fortran'
 $taskAssetName = 'codegraph-fortran-win32-x64.zip'

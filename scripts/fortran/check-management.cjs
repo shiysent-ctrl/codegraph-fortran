@@ -21,6 +21,7 @@ const system = process.env.SystemRoot || 'C:\\Windows';
 const shell = path.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe');
 const env = { ...process.env, USERPROFILE: path.join(work, 'home'), HOME: path.join(work, 'home'),
   LOCALAPPDATA: path.join(work, 'local'), APPDATA: path.join(work, 'roaming'),
+  CODEX_HOME: path.join(work, 'home', '.codex'),
   TEMP: path.join(work, 'runtime-temp'), TMP: path.join(work, 'runtime-temp'),
   CODEGRAPH_INSTALL_DIR: installRoot, CODEGRAPH_TELEMETRY: '0', CODEGRAPH_NO_UPDATE_CHECK: '1',
   CODEGRAPH_NO_DAEMON: '1', CODEGRAPH_NO_PROMPT_HOOK: '1', CODEGRAPH_NO_INSTALL_REFRESH: '1' };

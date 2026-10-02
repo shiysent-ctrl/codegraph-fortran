@@ -50,7 +50,7 @@ export function localInstallerPath(): string | undefined {
 
 export function buildWindowsInstallerScript(version: string, destination?: string, replace = false): string {
   if (!/^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new Error('Choose a Fortran fork release version, such as v1.6.1-fortran.3.');
+    throw new Error('Choose a Fortran fork release version, such as v1.6.1-fortran.4.');
   }
   const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
   const local = localInstallerPath();

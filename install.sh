@@ -199,7 +199,7 @@ for link in "$INSTALL_DIR/current" "$BIN_DIR/codegraph"; do
     else old_shim=$(readlink "$link"); fi
   elif [ -e "$link" ]; then die "Refusing to replace unrelated file: $link"; fi
 done
-"$stage/node" --liftoff-only "$stage/validation/write-config.cjs" "$stage" "$dest"
+"$stage/node" --liftoff-only "$stage/validation/write-config.cjs" "$stage" "$INSTALL_DIR/current"
 if [ -d "$dest" ]; then backup=$tmp/previous; mv "$dest" "$backup"; fi
 swapped=1
 mv "$stage" "$dest"

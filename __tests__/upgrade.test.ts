@@ -238,6 +238,7 @@ function makeDeps(
   const calls: Calls = { runs: [], captures: [], logs: [], errors: [] };
   const deps: UpgradeDeps = {
     npmPublished: true,
+    arch: 'x64',
     currentVersion: overrides.currentVersion,
     method: overrides.method,
     resolveLatest: overrides.resolveLatest ?? (async () => 'v0.9.9'),

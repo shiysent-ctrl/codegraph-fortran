@@ -196,7 +196,8 @@ describe('executeBinaryRemoval', () => {
     // The renamed exe is surfaced as a leftover for the user to delete.
     expect(result.leftovers).toHaveLength(1);
     expect(result.leftovers[0]).toContain('codegraph-old-node-');
-    expect(d.calls.some((c) => c.startsWith(`mv ${exe} `))).toBe(true);
+    expect(d.calls[0].startsWith(`mv ${exe} `)).toBe(true);
+    expect(d.calls[1]).toBe(`rm ${dir}`);
   });
 
   it('an unremovable path becomes a leftover, never an exception', () => {

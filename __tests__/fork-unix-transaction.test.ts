@@ -13,7 +13,7 @@ const version = 'v1.6.1-fortran.3';
 const quote = (s: string) => "'" + s.replace(/'/g, "'\"'\"'") + "'";
 function fixture(check: (f: { work: string; dest: string; install: string; bin: string;
   run: (failSwap?: boolean, failVerification?: boolean) => ReturnType<typeof spawnSync> }) => void) {
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-unix-transaction-'));
+  const work = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cg-unix-transaction-')));
   const home = path.join(work, "中文 user's home"), install = path.join(home, '.codegraph'), bin = path.join(home, '.local/bin');
   const dest = path.join(install, 'versions', version);
   const target = process.platform + '-' + process.arch, name = 'codegraph-fortran-' + target;

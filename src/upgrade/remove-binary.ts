@@ -274,20 +274,22 @@ export function executeBinaryRemoval(
       result.leftovers.push(p);
       continue;
     }
+    // Windows 先移出运行中的映像，避免递归删除过程中碰到当前 node.exe。
+    // 即使其他文件仍被占用，也保留运行时路径供用户在退出后清理。
+    let moved = moveLockedExeAside(p, deps);
     try {
       deps.rm(p);
       result.removed.push(p);
     } catch {
-      // Windows: the running exe inside this tree is deletable-after-rename.
-      const moved = moveLockedExeAside(p, deps);
+      if (!moved) moved = moveLockedExeAside(p, deps);
       try {
         deps.rm(p);
         result.removed.push(p);
-        if (moved) result.leftovers.push(moved);
       } catch {
         result.leftovers.push(p);
       }
     }
+    if (moved) result.leftovers.push(moved);
   }
 
   if (plan.npmGlobal) {

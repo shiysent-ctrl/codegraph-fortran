@@ -285,6 +285,8 @@ export interface UpgradeDeps {
   /** 本 fork 尚未发布 npm 包；只允许显式声明存在的 npm 渠道，默认禁止。 */
   npmPublished?: boolean;
   currentVersion: string;
+  /** 目标安装的架构；测试可独立于宿主 CPU 注入。生产默认使用当前运行时架构。 */
+  arch?: string;
   method: InstallMethod;
   resolveLatest: (pin?: string) => Promise<string>;
   /** Run a command inheriting stdio; returns its exit code (-1 = spawn failed). */
@@ -586,7 +588,7 @@ function upgradeWindowsBundle(
   latest: string,
   deps: UpgradeDeps
 ): number {
-  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const arch = deps.arch ?? process.arch;
   const script = buildWindowsUpgradeScript(method.bundleRoot, latest, arch);
   // -EncodedCommand (base64 UTF-16LE), NOT -Command: Node's Windows argv→command
   // -line quoting mangles a long multi-statement script, so PowerShell never

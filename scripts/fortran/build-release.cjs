@@ -30,7 +30,7 @@ function walk(dir, prefix = '') {
 }
 async function build(archive, outputDirectory) {
   if (!integrity) throw new Error('不支持的发行目标：' + target);
-  if (version !== '1.6.1-fortran.3') throw new Error('升级版本时同步验证器、安装入口和发行工作流');
+  if (!/^\d+\.\d+\.\d+-fortran\.\d+$/.test(version)) throw new Error('升级版本时同步验证器、安装入口和发行工作流');
   archive = fs.realpathSync(archive);
   if (hash(archive, 'sha512', 'base64') !== integrity) throw new Error('官方平台包 SHA-512 不匹配');
   const output = outputDirectory ? path.resolve(outputDirectory) : path.join(root, 'release', 'fortran');

@@ -38,6 +38,7 @@ try {
   assert.equal(fs.realpathSync(path.join(install, 'current')), bundle);
   assert.equal(fs.realpathSync(path.join(bin, 'codegraph')), path.join(bundle, 'bin/codegraph'));
   assert.equal(cli('--version').trim(), version);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'mcp-config.json'), 'utf8')).mcpServers.codegraph.command, path.join(install, 'current', 'node'));
   const invalid = spawnSync('codegraph', ['status', '--__invalid_option'], { env, cwd: project, encoding: 'utf8' });
   assert.ifError(invalid.error); assert.equal(invalid.status, 1);
   cli('init', '--yes');

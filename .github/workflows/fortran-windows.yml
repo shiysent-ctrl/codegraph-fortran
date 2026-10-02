@@ -9,6 +9,11 @@ on:
         default: false
   pull_request:
     paths:
+      - 'README.md'
+      - 'FORTRAN*.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'ui/package.json'
       - 'src/**'
       - '__tests__/fortran.test.ts'
       - '__tests__/fork*.test.ts'

@@ -14,6 +14,8 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- Windows uninstall moves the active runtime aside before removing program files, and Unix manual MCP snippets follow the current version across upgrades.
+
 - Fork installation and upgrades now use this repository’s releases, including compatible previews, while retaining the standard Windows directory and commands.
 
 - Windows PowerShell 5.1 now completes the Fortran installer correctly when reading its Chinese comments.
