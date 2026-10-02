@@ -62,7 +62,7 @@ async function mcp(bundle, project) {
   }
   try {
     const initialized = await request('initialize', { protocolVersion: '2024-11-05', capabilities: {},
-      clientInfo: { name: 'codegraph-fortran-verifier', version: 'fortran.1' } });
+      clientInfo: { name: 'codegraph-fortran-verifier', version: 'fortran.3' } });
     assert.ok(initialized.result?.serverInfo);
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
     const listed = await request('tools/list', {});
@@ -92,7 +92,7 @@ async function mcp(bundle, project) {
 async function verify(bundle) {
   bundle = fs.realpathSync(bundle);
   const receipt = JSON.parse(fs.readFileSync(path.join(bundle, 'fortran-release.json'), 'utf8'));
-  assert.equal(receipt.version, '1.6.1-fortran.2');
+  assert.equal(receipt.version, '1.6.1-fortran.3');
   assert.equal(receipt.cliName, 'codegraph');
   assert.equal(receipt.indexDirectory, '.codegraph');
   assert.ok(!fs.existsSync(path.join(bundle, 'bin/codegraph-fortran.cmd')));

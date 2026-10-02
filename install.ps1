@@ -10,7 +10,7 @@ param(
     [string]$ChecksumFile
 )
 $ErrorActionPreference = 'Stop'
-$taskVersion = '1.6.1-fortran.2'
+$taskVersion = '1.6.1-fortran.3'
 $taskRepo = 'shiysent-ctrl/codegraph-fortran'
 $taskAssetName = 'codegraph-fortran-win32-x64.zip'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [Environment]::Is64BitOperatingSystem -ne $true) {

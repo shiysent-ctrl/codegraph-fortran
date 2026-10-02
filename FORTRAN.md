@@ -4,13 +4,21 @@
 
 ## 当前状态
 
-本次命令调整尚未发布；包版本仍为 `1.6.1-fortran.2`，不覆盖该版本已发布的资产。已有 [v1.6.1-fortran.2 Release](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 仍使用旧的独立命令和索引目录，不能用它验证本次修改。
+标准入口对应 **v1.6.1-fortran.3，Windows x64 预览版**。[旧 v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 保持原样，仍采用旧的独立入口。
+
+从 [v1.6.1-fortran.3](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.3) 下载 `install.ps1` 后运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+默认二进制目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.3`。脚本下载并校验同一 Release 的资产，使用随包 Node；已有目录不覆盖，PATH 和客户端配置不自动修改。
 
 构建不会安装新版、修改 PATH 或切换客户端。继续使用已经支持 Fortran 的旧版；准备好新发行版并明确决定切换后，再安装。当前 Windows x64 包沿用 WASM 提取路径，未包含上游 Rust 原生内核。
 
 ## 只构建和验证
 
-在本 fork 工作目录中，使用 Node 22.5–24.x：
+在本 fork 工作目录中，使用 Node 24.x：
 
 ```powershell
 npm ci
@@ -37,17 +45,17 @@ codegraph serve --mcp
 
 生成的 `mcp-config.json` 和 `codex-mcp.toml` 使用 `codegraph` 名称，指向所选构建自带 Node 和 CLI，不强制覆盖索引目录；不会自动修改客户端。将来切换时替换现有 `codegraph` 条目即可，不需另建 Fortran 专用 MCP。新版包暂时禁用共享守护进程，避免不同构建进程混用。
 
-## 安装与升级留到发布后
+## 安装与升级
 
-仅在明确决定安装时，使用同一构建的安装脚本、ZIP 和 SHA256SUMS：
+离线安装时，使用同一 Release 的安装脚本、ZIP 和 SHA256SUMS：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .\codegraph-fortran-win32-x64.zip -ChecksumFile .\SHA256SUMS -Destination "D:\Tools\CodeGraphPreview"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .\codegraph-fortran-win32-x64.zip -ChecksumFile .\SHA256SUMS -Destination "D:\Tools\CodeGraph\1.6.1-fortran.3"
 ```
 
 安装脚本核实收据包含标准 CLI/索引约定，拒绝误用旧隔离版；已有目标目录不会覆盖。它不会修改全局 CodeGraph、PATH 或客户端。`install`、`upgrade`、`uninstall` 子命令仍转交原版 CLI；这些子命令的安装渠道仍沿用上游，不能用来升级本 fork 的发行包，本次也未运行它们。fork 升级使用对应的发行资产和安装脚本。
 
-新版默认与旧版使用同名索引，因此切换时应停止旧版写入，选定实际项目后用新版重建索引。不要在现有研究项目上测试未发布构建；临时项目足以验证命令和目录。
+新版默认与旧版使用同名索引，因此切换时应停止旧版写入，选定实际项目后用新版重建索引。首次使用时先在临时项目验证命令和目录，再决定是否切换真实研究项目。
 
 ## Fortran 支持与边界
 
