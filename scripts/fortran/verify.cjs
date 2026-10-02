@@ -16,7 +16,9 @@ const env = { ...process.env, CODEGRAPH_TELEMETRY: '0', CODEGRAPH_NO_UPDATE_CHEC
 // 测试默认目录时清除继承的覆盖值；启动器本身仍遵循原版环境变量规则。
 for (const key of Object.keys(env)) if (key.toUpperCase() === 'CODEGRAPH_DIR') delete env[key];
 function launcher(bundle, command, cwd) {
-  const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/c', 'codegraph ' + command], {
+  const windows = process.platform === 'win32';
+  const result = spawnSync(windows ? (process.env.ComSpec || 'cmd.exe') : path.join(bundle, 'bin/codegraph'),
+    windows ? ['/d', '/c', 'codegraph ' + command] : command.split(' '), {
     cwd, env: { ...env, PATH: path.join(bundle, 'bin') + path.delimiter + process.env.PATH },
     encoding: 'utf8', timeout: 60000, maxBuffer: 8 * 1024 * 1024,
   });
@@ -93,6 +95,7 @@ async function verify(bundle) {
   bundle = fs.realpathSync(bundle);
   const receipt = JSON.parse(fs.readFileSync(path.join(bundle, 'fortran-release.json'), 'utf8'));
   assert.equal(receipt.version, '1.6.1-fortran.3');
+  if (receipt.target) assert.equal(receipt.target, process.platform + '-' + process.arch);
   assert.equal(receipt.cliName, 'codegraph');
   assert.equal(receipt.indexDirectory, '.codegraph');
   assert.ok(!fs.existsSync(path.join(bundle, 'bin/codegraph-fortran.cmd')));

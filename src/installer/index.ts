@@ -13,9 +13,11 @@
  * `--print-config` CLI flags.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
+import { REPO, NPM_PACKAGE, buildWindowsInstallerScript, buildUnixInstallerScript, releaseAsset, isBundleOnPath } from '../distribution';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import {
   ALL_TARGETS,
   detectAll,
@@ -102,9 +104,11 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
     return;
   }
 
-  // Step 2: install the codegraph npm package on PATH (always offered;
+  // Step 2: install the fork bundle on PATH (always offered;
   // matches existing behavior). Skipped when --yes (assume present).
-  if (!useDefaults) {
+  const selectedBundleOnPath = isBundleOnPath(
+    path.resolve(__dirname, '../../..'), process.env.PATH || process.env.Path || '');
+  if (!useDefaults && !selectedBundleOnPath) {
     const shouldInstallGlobally = await clack.confirm({
       message: 'Install the codegraph CLI on your PATH? (Required so agents can launch the MCP server)',
       initialValue: true,
@@ -119,11 +123,26 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
       try {
         // Generous bound (slow networks / cold npm cache) — but bounded, so a
         // wedged npm can't hang the interactive installer forever (#1139).
-        execSync('npm install -g @colbymchenry/codegraph', { stdio: 'pipe', windowsHide: true, timeout: 120_000 });
+        releaseAsset(); // 不支持的平台在下载前失败，禁止回退到上游。
+        let bin: string;
+        if (process.platform === 'win32') {
+          const script = buildWindowsInstallerScript(getVersion());
+          execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand',
+            Buffer.from(script, 'utf16le').toString('base64')], { stdio: 'pipe', windowsHide: true, timeout: 240_000 });
+          const installRoot = process.env.CODEGRAPH_INSTALL_DIR || path.join(process.env.LOCALAPPDATA!, 'codegraph');
+          bin = path.join(installRoot, 'current', 'bin');
+        } else {
+          execFileSync('sh', ['-c', buildUnixInstallerScript()], { stdio: 'pipe', timeout: 240_000,
+            env: { ...process.env, CODEGRAPH_VERSION: getVersion() } });
+          bin = process.env.CODEGRAPH_BIN_DIR || path.join(os.homedir(), '.local', 'bin');
+        }
+        // 安装后当前会话使用标准入口；Unix 终端仍需将 ~/.local/bin 加入 PATH。
+        process.env.PATH = bin + path.delimiter + (process.env.PATH || '');
         s.stop('Installed codegraph CLI on PATH');
       } catch {
-        s.stop('Could not install (permission denied)');
-        clack.log.warn('Try: sudo npm install -g @colbymchenry/codegraph');
+        s.stop('Could not install the fork CLI');
+        clack.log.warn(`Use the tested installer from https://github.com/${REPO}/releases.`);
+        throw new Error('Fork CLI installation failed; agent configuration was not written.');
       }
     } else {
       clack.log.info('Skipped CLI install — agents will not be able to launch the MCP server without it');
@@ -553,7 +572,7 @@ export async function runUninstaller(opts: RunUninstallerOptions): Promise<void>
         if (result.npm === 'removed') {
           clack.log.success('Removed the npm global package (npm uninstall -g).');
         } else if (result.npm === 'failed') {
-          clack.log.warn('npm uninstall failed — run `npm uninstall -g @colbymchenry/codegraph` yourself (EACCES usually means it needs sudo).');
+          clack.log.warn(`npm uninstall failed — run npm uninstall -g ${NPM_PACKAGE} yourself.`);
         }
         for (const p of result.leftovers) {
           clack.log.warn(`Could not remove ${tildify(p)} — delete it manually${process.platform === 'win32' ? ' after this window closes' : ''}.`);
@@ -563,7 +582,7 @@ export async function runUninstaller(opts: RunUninstallerOptions): Promise<void>
           clack.log.info('If your PATH still lists a codegraph bin directory, remove that entry from your user PATH.');
         }
       } else {
-        clack.log.info('Kept the CLI. Remove it later with `codegraph uninstall` or `npm uninstall -g @colbymchenry/codegraph`.');
+        clack.log.info(`Kept the CLI. Remove it later with codegraph uninstall or npm uninstall -g ${NPM_PACKAGE}.`);
       }
     }
   }

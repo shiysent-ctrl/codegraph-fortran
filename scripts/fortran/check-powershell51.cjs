@@ -17,7 +17,7 @@ const env = { ...process.env };
 for (const key of Object.keys(env)) if (key.toLowerCase() === 'psmodulepath') delete env[key];
 const result = spawnSync(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'install.ps1'),
   '-Archive', path.join(root, 'release/fortran/codegraph-fortran-win32-x64.zip'),
-  '-ChecksumFile', path.join(root, 'release/fortran/SHA256SUMS'), '-Destination', destination],
+  '-ChecksumFile', path.join(root, 'release/fortran/SHA256SUMS'), '-Destination', destination, '-NoPath'],
   { env, encoding: 'utf8', timeout: 180000, maxBuffer: 8 * 1024 * 1024 });
 assert.ifError(result.error);
 assert.equal(result.status, 0, result.stderr + result.stdout);

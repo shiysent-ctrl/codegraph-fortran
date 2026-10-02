@@ -17,11 +17,9 @@
  * vendored `node` binary and a `bin/codegraph` launcher next to its `lib/`, so
  * we can recognize it from the running file's path without a marker file.
  *
- * Windows wrinkle: a running `node.exe` is locked and can't be deleted, so the
- * bundle's `current\` dir can't be overwritten in place by the process doing
- * the upgrade. We therefore spawn a DETACHED helper that waits for this
- * process to exit (releasing the lock), then runs `install.ps1`. This is the
- * conventional Windows self-update dance (rustup/nvm-windows do the same).
+ * Windows upgrades reuse install.ps1, which renames the locked running node.exe
+ * aside before replacing the validated bundle. Unix installs stage a version
+ * directory and switch the standard links, retaining the previous active bundle.
  */
 
 import * as fs from 'fs';
@@ -30,10 +28,9 @@ import * as https from 'https';
 import { spawnSync } from 'child_process';
 import { ansiColorsEnabled } from '../ui/color';
 
-export const REPO = 'colbymchenry/codegraph';
-export const NPM_PACKAGE = '@colbymchenry/codegraph';
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/main`;
-export const INSTALL_SH_URL = `${RAW_BASE}/install.sh`;
+import { REPO, NPM_PACKAGE, releaseAsset, buildWindowsInstallerScript, buildUnixInstallerScript, INSTALL_SH_URL } from '../distribution';
+export { REPO, NPM_PACKAGE } from '../distribution';
+export { INSTALL_SH_URL } from '../distribution';
 
 // ---------------------------------------------------------------------------
 // Install-method detection (pure — fully unit-testable via injected probes)
@@ -176,7 +173,19 @@ export function compareVersions(a: string, b: string): number {
   // A prerelease is "less than" its release (1.0.0-rc < 1.0.0).
   if (sa.pre && !sb.pre) return -1;
   if (!sa.pre && sb.pre) return 1;
-  if (sa.pre && sb.pre) return sa.pre < sb.pre ? -1 : sa.pre > sb.pre ? 1 : 0;
+  if (sa.pre && sb.pre) {
+    const aa = sa.pre.split('.'), bb = sb.pre.split('.');
+    for (let i = 0; i < Math.max(aa.length, bb.length); i++) {
+      const a = aa[i], b = bb[i];
+      if (a === b) continue;
+      if (a === undefined) return -1;
+      if (b === undefined) return 1;
+      const an = /^\d+$/.test(a), bn = /^\d+$/.test(b);
+      if (an && bn) return Number(a) - Number(b);
+      if (an !== bn) return an ? -1 : 1;
+      return a < b ? -1 : 1;
+    }
+  }
   return 0;
 }
 
@@ -232,42 +241,30 @@ function httpsGet(
   });
 }
 
-/**
- * Resolve the latest release tag (e.g. `v0.9.9`).
- *
- * Primary: read the redirect `Location` from `github.com/<repo>/releases/latest`
- * — same trick install.sh uses, because the unauthenticated GitHub API is
- * rate-limited to 60 req/h/IP and 403s on shared/cloud hosts (issue #325). The
- * redirect has no such limit. Fall back to the API only if the redirect can't
- * be read.
- */
-export async function resolveLatestVersion(repo = REPO, timeoutMs = 12000): Promise<string> {
-  try {
-    const res = await httpsGet(
-      `https://github.com/${repo}/releases/latest`,
-      { 'User-Agent': 'codegraph-upgrade' },
-      timeoutMs
-    );
-    const loc = res.headers.location;
-    const tag = parseLatestTagFromLocation(Array.isArray(loc) ? loc[0] : loc);
-    if (tag) return normalizeVersion(tag);
-  } catch {
-    /* fall through to API */
+/** 包含预览版，只选择资产齐全且采用标准入口的 fork 发行；不会查询上游。 */
+export function selectForkRelease(releases: unknown, platform: string = process.platform, arch: string = process.arch): string | null {
+  const asset = releaseAsset(platform, arch);
+  if (!Array.isArray(releases)) return null;
+  const tags = releases.filter(r => r && !r.draft && typeof r.tag_name === 'string'
+    && /^v?\d+\.\d+\.\d+-fortran\.\d+$/.test(r.tag_name)
+    && compareVersions(r.tag_name, 'v1.6.1-fortran.3') >= 0
+    && [asset, 'SHA256SUMS', platform === 'win32' ? 'install.ps1' : 'install.sh'].every(name =>
+      Array.isArray(r.assets) && r.assets.some((a: { name: string }) => a.name === name)))
+    .map(r => normalizeVersion(r.tag_name));
+  return tags.sort((a, b) => compareVersions(b, a))[0] ?? null;
+}
+
+export async function resolveLatestVersion(repo = REPO, timeoutMs = 12000,
+  get: typeof httpsGet = httpsGet, platform: string = process.platform, arch: string = process.arch): Promise<string> {
+  // latest 接口排除 prerelease；本 fork 的发行渠道包含 Fortran 预览包。
+  const res = await get(
+      `https://api.github.com/repos/${repo}/releases?per_page=100`,
+    { 'User-Agent': 'codegraph-upgrade', Accept: 'application/vnd.github+json' }, timeoutMs);
+  if (res.status === 200) {
+    const tag = selectForkRelease(JSON.parse(res.body), platform, arch);
+    if (tag) return tag;
   }
-  try {
-    const res = await httpsGet(
-      `https://api.github.com/repos/${repo}/releases/latest`,
-      { 'User-Agent': 'codegraph-upgrade', Accept: 'application/vnd.github+json' },
-      timeoutMs
-    );
-    const tag = JSON.parse(res.body)?.tag_name;
-    if (typeof tag === 'string' && tag) return normalizeVersion(tag);
-  } catch {
-    /* fall through to error */
-  }
-  throw new Error(
-    'could not resolve the latest version from GitHub. Check your network, or pin a version: `codegraph upgrade <version>`.'
-  );
+  throw new Error(`Could not find a compatible release in ${repo}. Check your network, or pin a fork version: codegraph upgrade <version>.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +282,8 @@ export interface UpgradeOptions {
 
 /** Injectable side-effects so the orchestrator stays unit-testable. */
 export interface UpgradeDeps {
+  /** 本 fork 尚未发布 npm 包；只允许显式声明存在的 npm 渠道，默认禁止。 */
+  npmPublished?: boolean;
   currentVersion: string;
   method: InstallMethod;
   resolveLatest: (pin?: string) => Promise<string>;
@@ -371,20 +370,24 @@ export async function runUpgrade(opts: UpgradeOptions, deps: UpgradeDeps): Promi
     case 'bundle':
       code = await (method.os === 'windows'
         ? upgradeWindowsBundle(method, latest, deps)
-        : upgradeUnixBundle(method, opts.version ? latest : undefined, deps));
+        : upgradeUnixBundle(method, latest, deps));
       break;
     case 'npm':
+      if (deps.npmPublished !== true) {
+        deps.error(`This fork is distributed via https://github.com/${REPO}/releases, not npm. Install its platform bundle or update the source checkout.`);
+        return 1;
+      }
       // npm version specs have no leading "v" (`@0.9.8`, not `@v0.9.8` — the
       // latter resolves as a nonexistent dist-tag).
       code = await upgradeNpm(method, opts.version ? stripV(latest) : 'latest', deps);
       break;
     case 'npx':
       deps.log(c.green('npx always runs the latest version on demand — nothing to upgrade.'));
-      deps.log(c.dim(`Force a fresh fetch with: npx ${NPM_PACKAGE}@latest`));
+      deps.log(c.dim(`Get the fork bundle from https://github.com/${REPO}/releases.`));
       return 0;
     case 'source':
       deps.warn(`Running from a source checkout at ${method.root}.`);
-      deps.log(c.dim('Upgrade it with: git pull && npm run build'));
+      deps.log(c.dim(`Upgrade the fork checkout from https://github.com/${REPO}: git pull && npm run build`));
       return 0;
     default:
       deps.error(`Couldn’t determine how CodeGraph was installed (${method.reason}).`);
@@ -540,13 +543,13 @@ async function selfHealPromptHook(deps: UpgradeDeps): Promise<void> {
 
 function upgradeUnixBundle(
   method: Extract<InstallMethod, { kind: 'bundle' }>,
-  pinned: string | undefined,
+  pinned: string,
   deps: UpgradeDeps
 ): number {
   const downloader = deps.hasCommand('curl')
-    ? `curl -fsSL ${INSTALL_SH_URL}`
+    ? 'curl' as const
     : deps.hasCommand('wget')
-      ? `wget -qO- ${INSTALL_SH_URL}`
+      ? 'wget' as const
       : null;
   if (!downloader) {
     deps.error('Neither curl nor wget is available to download the installer.');
@@ -558,8 +561,8 @@ function upgradeUnixBundle(
   if (method.installDir) env.CODEGRAPH_INSTALL_DIR = method.installDir;
   if (pinned) env.CODEGRAPH_VERSION = pinned;
 
-  deps.log(c.dim(`Running the installer (${downloader} | sh)…`));
-  const code = deps.run('sh', ['-c', `${downloader} | sh`], env);
+  deps.log(c.dim(`Running the fork installer for ${pinned}…`));
+  const code = deps.run('sh', ['-c', buildUnixInstallerScript(downloader, false)], env);
   if (code !== 0) {
     deps.error(`Installer exited with code ${code}.`);
     return 1;
@@ -574,34 +577,8 @@ function upgradeUnixBundle(
 
 /** Build the in-place Windows upgrade script (exported for unit-testing). */
 export function buildWindowsUpgradeScript(bundleRoot: string, version: string, arch: string): string {
-  const target = `win32-${arch}`;
-  const url = `https://github.com/${REPO}/releases/download/${version}/codegraph-${target}.zip`;
-  // Windows can't DELETE a running exe but CAN rename it, so we upgrade IN
-  // PLACE: download → rename the locked node.exe aside → extract the new bundle
-  // over current\. Synchronous, no detached helper (which dies under SSH/job
-  // objects and has worse UX). The running process keeps its renamed node.exe
-  // mapped; the NEXT `codegraph` invocation uses the new one. We can't reuse
-  // install.ps1 here — it `Remove-Item`s current\, which fails on the locked exe.
-  return [
-    `$ErrorActionPreference='Stop'`,
-    `$dest='${bundleRoot}'`,
-    `$url='${url}'`,
-    `Write-Host "Downloading $url"`,
-    `$tmp=Join-Path $env:TEMP ('cg-up-'+[guid]::NewGuid().ToString('N'))`,
-    `New-Item -ItemType Directory -Force -Path $tmp | Out-Null`,
-    `$zip=Join-Path $tmp 'cg.zip'`,
-    `Invoke-WebRequest -Uri $url -OutFile $zip`,
-    `$stage=Join-Path $tmp 'stage'`,
-    `Expand-Archive -Path $zip -DestinationPath $stage -Force`,
-    `$inner=Join-Path $stage 'codegraph-${target}'`,
-    `$src=if(Test-Path $inner){$inner}else{$stage}`,
-    `$node=Join-Path $dest 'node.exe'`,
-    `if(Test-Path $node){Rename-Item -Path $node -NewName ('node.exe.old-'+[guid]::NewGuid().ToString('N')) -Force}`,
-    `Copy-Item -Path (Join-Path $src '*') -Destination $dest -Recurse -Force`,
-    `Get-ChildItem -Path $dest -Filter 'node.exe.old-*' -ErrorAction SilentlyContinue | ForEach-Object { try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch {} }`,
-    `Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue`,
-    `Write-Host "Installed CodeGraph ${version} to $dest"`,
-  ].join(';');
+  if (arch !== 'x64') throw new Error('This fork currently publishes Windows x64 bundles only.');
+  return buildWindowsInstallerScript(version, bundleRoot, true);
 }
 
 function upgradeWindowsBundle(

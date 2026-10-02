@@ -65,6 +65,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .
 
 语法来自 [stadelmanma/tree-sitter-fortran 的固定 MIT 源码](https://github.com/stadelmanma/tree-sitter-fortran/tree/2bc0220f34ca660ec9571c54ea57ed5363338de1)，许可证及 WASM 构建记录随包保存在 `third_party/fortran`。
 
+## 当前源码管理渠道（未发布）
+
+源码安装器沿用 `%LOCALAPPDATA%\codegraph\current` 和用户 PATH，`codegraph install` 的 CLI 安装及 `codegraph upgrade` 的发行查询指向本 fork。升级校验 ZIP、来源与标准入口后复用安装器替换程序；`uninstall` 使用标准目录与配置名，并仅识别本 fork 的 npm 包名。预览版参与升级检查，旧隔离发行被排除。
+
+本页前述隔离安装步骤描述的是保持原样的已发布 v1.6.1-fortran.3。源码安装的临时验收应额外使用 `-NoPath`；正式默认安装会替换可识别的标准 CodeGraph 程序目录。npm 发行尚未提供，不回退到上游。当前源码增加 Linux x64/ARM64 与 macOS Intel/Apple Silicon bundle 构建、安装和管理流程；对应安装包尚未发布。
+
+## Linux/macOS 源码支持（未发布）
+
+Unix 使用 `~/.codegraph/versions/<tag>` 和 `~/.local/bin/codegraph`，与上游一致。构建需在目标平台进行；`build-release.cjs` 按系统和架构选择固定运行时，校验 SHA-512，输出 tar.gz。`install.sh` 校验 SHA-256、平台和来源，执行混合语言 CLI/MCP 验收后切换链接；失败恢复原目录和链接，保留前一个版本并清理更早的可识别 fork 包。
+
+`check-management-unix.cjs` 使用临时 HOME 和项目验证默认布局、CLI 初始化、客户端配置、运行时替换、坏包拒绝、卸载保留项目索引和机器状态。`Fortran bundles` 工作流新增 Linux x64/ARM64（Docker）和 macOS Intel/Apple Silicon 原生任务；五个平台通过后合并资产和 SHA256SUMS。未发布 npm 包，不使用上游安装渠道。
+
+操作步骤见 [README](README.md)。这些修改位于开发分支 `codex/fork-management`，原生 Linux/macOS 验收等待在对应系统或 CI 执行；Git Bash 的 shell 检查不等同于原生验收。已发布 v1.6.1-fortran.3 不包含这些修改。
+
 ## 维护与发行
 
-本 fork 是提取器、语法、样例、发行脚本的单一维护源。知识库仅维护入口和说明。发布前需选择新版本，同步包、验证器、安装脚本和入口指针，再运行 **Fortran Windows** 工作流；旧 tag/资产保持原样。发布完成后才更新知识库入口的 Release、SHA-256，并将 `releaseAvailable` 改为 `true`。
+本 fork 是提取器、语法、样例、发行脚本的单一维护源。知识库仅维护入口和说明。发布前需选择新版本，同步包、验证器、安装脚本和入口指针，再运行 **Fortran bundles** 工作流；旧 tag/资产保持原样。发布完成后才更新知识库入口的 Release、SHA-256，并将 `releaseAvailable` 改为 `true`。

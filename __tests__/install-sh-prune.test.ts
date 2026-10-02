@@ -4,7 +4,7 @@
  * The standalone installer keeps each release in its own `versions/<v>` dir and
  * — before this fix — never removed the old ones, so they piled up (~50 MB of
  * vendored Node runtime each) across upgrades. `install.sh` now prunes every
- * `versions/*` dir except the one it just installed.
+ * recognized fork version except the current and the previous active version.
  *
  * Rather than duplicate the shell (which would drift from the shipped script),
  * these tests extract the REAL prune block from `install.sh` — between its
@@ -42,8 +42,8 @@ function shq(s: string): string {
 }
 
 /** Run the real prune block with INSTALL_DIR/dest set, return code + stdout. */
-function runPrune(installDir: string, dest: string): { code: number; stdout: string } {
-  const script = `set -eu\nINSTALL_DIR=${shq(installDir)}\ndest=${shq(dest)}\n${extractPruneBlock()}\n`;
+function runPrune(installDir: string, dest: string, previous = ''): { code: number; stdout: string } {
+  const script = `set -eu\nINSTALL_DIR=${shq(installDir)}\ndest=${shq(dest)}\nprevious_dir=${shq(previous)}\n${extractPruneBlock()}\n`;
   const r = spawnSync('sh', ['-c', script], { encoding: 'utf8' });
   return { code: r.status ?? -1, stdout: r.stdout ?? '' };
 }
@@ -53,6 +53,8 @@ function seedVersion(installDir: string, version: string): string {
   const dir = path.join(installDir, 'versions', version);
   fs.mkdirSync(path.join(dir, 'bin'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'bin', 'codegraph'), '#!/bin/sh\n');
+  fs.writeFileSync(path.join(dir, 'node'), 'bundle runtime');
+  fs.writeFileSync(path.join(dir, 'fortran-release.json'), JSON.stringify({ repository: 'shiysent-ctrl/codegraph-fortran' }));
   return dir;
 }
 
@@ -81,6 +83,21 @@ describe.skipIf(process.platform === 'win32')('install.sh version prune (#1074)'
     // The `current` symlink (outside versions/) is never globbed → untouched.
     expect(fs.existsSync(path.join(installDir, 'current'))).toBe(true);
     expect(fs.realpathSync(path.join(installDir, 'current'))).toBe(fs.realpathSync(dest));
+  });
+
+  it('keeps the previous active version, unknown directories and symlinks', () => {
+    const previous = seedVersion(installDir, 'v1.1.3');
+    const dest = seedVersion(installDir, 'v1.1.4');
+    const unknown = path.join(installDir, 'versions', 'user-project');
+    fs.mkdirSync(unknown); fs.writeFileSync(path.join(unknown, 'keep.txt'), 'keep');
+    const external = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-outside-'));
+    try {
+      fs.symlinkSync(external, path.join(installDir, 'versions', 'external'));
+      expect(runPrune(installDir, dest, previous).code).toBe(0);
+      expect(fs.existsSync(previous)).toBe(true);
+      expect(fs.readFileSync(path.join(unknown, 'keep.txt'), 'utf8')).toBe('keep');
+      expect(fs.lstatSync(path.join(installDir, 'versions', 'external')).isSymbolicLink()).toBe(true);
+    } finally { fs.rmSync(external, { recursive: true, force: true }); }
   });
 
   it('is a silent no-op when the just-installed version is the only one', () => {

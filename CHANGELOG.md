@@ -14,9 +14,13 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixes
 
+- Fork installation and upgrades now use this repository’s releases, including compatible previews, while retaining the standard Windows directory and commands.
+
 - Windows PowerShell 5.1 now completes the Fortran installer correctly when reading its Chinese comments.
 
 ### New Features
+
+- The fork can now build standalone Linux x64/ARM64 and macOS Intel/Apple Silicon bundles, using the standard directories and commands with checked installs and fork-only upgrades. Native platform acceptance is required before publishing the combined assets.
 
 - Fortran modules, routines and direct calls can now be indexed and explored with complete routine source.
 - The Fortran extension uses the standard `codegraph` commands, `.codegraph` project index and `codegraph` MCP name while retaining existing language support.

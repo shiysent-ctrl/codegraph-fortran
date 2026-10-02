@@ -210,14 +210,13 @@ describe('version helpers', () => {
     expect(a).toContain('codegraph index -f');
   });
 
-  it('buildWindowsUpgradeScript targets the right asset per arch and renames-not-deletes the exe', () => {
-    const arm = buildWindowsUpgradeScript('C:\\cg\\current', 'v1.2.3', 'arm64');
-    expect(arm).toContain('releases/download/v1.2.3/codegraph-win32-arm64.zip');
-    expect(arm).toContain("$dest='C:\\cg\\current'");
-    expect(arm).toContain('Rename-Item'); // never Remove-Item on the locked exe
-    expect(arm).not.toMatch(/Remove-Item[^;]*\$dest'?\s*;/); // doesn't delete current\
-    const x64 = buildWindowsUpgradeScript('C:\\cg\\current', 'v1.2.3', 'x64');
-    expect(x64).toContain('codegraph-win32-x64.zip');
+  it('buildWindowsUpgradeScript uses the fork installer and rejects unpublished architectures', () => {
+    expect(() => buildWindowsUpgradeScript('C:\\cg\\current', 'v1.6.1-fortran.3', 'arm64')).toThrow(/x64/);
+    const x64 = buildWindowsUpgradeScript('C:\\cg\\current', 'v1.6.1-fortran.3', 'x64');
+    expect(x64).toContain('install.ps1');
+    expect(x64).toContain("-Version 'v1.6.1-fortran.3'");
+    expect(x64).toContain('-Replace -NoPath');
+    expect(x64).not.toContain('colbymchenry');
   });
 });
 
@@ -238,6 +237,7 @@ function makeDeps(
 ): { deps: UpgradeDeps; calls: Calls } {
   const calls: Calls = { runs: [], captures: [], logs: [], errors: [] };
   const deps: UpgradeDeps = {
+    npmPublished: true,
     currentVersion: overrides.currentVersion,
     method: overrides.method,
     resolveLatest: overrides.resolveLatest ?? (async () => 'v0.9.9'),
@@ -298,7 +298,9 @@ describe('runUpgrade', () => {
     expect(calls.runs[0].cmd).toBe('sh');
     expect(calls.runs[0].args[0]).toBe('-c');
     expect(calls.runs[0].args[1]).toContain('curl -fsSL');
-    expect(calls.runs[0].args[1]).toContain('| sh');
+    expect(calls.runs[0].args[1]).toContain('sh "$script"');
+    expect(calls.runs[0].args[1]).not.toContain('| sh');
+    expect(calls.runs[0].env?.CODEGRAPH_VERSION).toBe('v0.9.9');
     expect(calls.runs[0].env?.CODEGRAPH_INSTALL_DIR).toBe('/h/.codegraph');
     expect(calls.logs.join('\n')).toMatch(/codegraph sync/); // re-index advisory printed
   });
@@ -327,10 +329,10 @@ describe('runUpgrade', () => {
     expect(calls.runs[0].cmd).toBe('powershell.exe');
     const decoded = decodeEncodedCommand(calls.runs[0].args);
     // Downloads the right asset, renames the locked exe aside, copies over current\.
-    expect(decoded).toContain('releases/download/v0.9.9/codegraph-win32-');
-    expect(decoded).toContain('Rename-Item');
-    expect(decoded).toContain('node.exe.old-');
-    expect(decoded).toContain('Copy-Item');
+    expect(decoded).toContain("-Version 'v0.9.9'");
+    expect(decoded).toContain('install.ps1');
+    expect(decoded).toContain('-Replace');
+    expect(decoded).toContain('-NoPath');
   });
 
   it('windows bundle: a non-zero installer exit is a failure', async () => {
