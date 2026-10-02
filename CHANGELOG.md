@@ -12,6 +12,14 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Highlights
+
+- Install the Fortran extension on Windows x64, Linux x64/ARM64 and macOS Intel/Apple Silicon with the standard CodeGraph commands and directories.
+- Install and upgrade from this fork's releases while retaining the original multi-language CLI and MCP capabilities.
+- Follow the rewritten installation guide for online/offline setup, project indexing, MCP configuration and migration from earlier previews.
+
+When switching from an earlier preview, select the new CLI and MCP configuration and re-index your chosen project.
+
 ### Fixes
 
 - Windows uninstall moves the active runtime aside before removing program files, and Unix manual MCP snippets follow the current version across upgrades.

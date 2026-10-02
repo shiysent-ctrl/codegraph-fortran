@@ -9,6 +9,8 @@ const targets = Object.keys(require('./runtime-packages.json'));
 const input = path.resolve(process.argv[2] || 'release/artifacts');
 const output = path.resolve(process.argv[3] || 'release/fortran-all');
 const version = require('../../package.json').version;
+const notes = fs.readFileSync(path.join(__dirname, '../../FORTRAN-RELEASE.md'), 'utf8');
+assert.ok(notes.startsWith('# CodeGraph ' + version + ' '), 'Release notes must match the package version');
 const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 assert.ok(!fs.existsSync(output), 'Choose a fresh output directory; release assets are never overwritten');
 const files = [], sums = [];
@@ -36,12 +38,5 @@ files.push([unixInstaller, 'install.sh']);
 fs.mkdirSync(output, { recursive: true });
 for (const [from, name] of files) fs.copyFileSync(from, path.join(output, name));
 fs.writeFileSync(path.join(output, 'SHA256SUMS'), sums.join('\n') + '\n');
-fs.writeFileSync(path.join(output, 'RELEASE-NOTES.md'), `CodeGraph ${version} with the Fortran extension.\n\n` +
-  'Preserves the original language support, standard `codegraph` commands and `.codegraph` project indexes.\n\n' +
-  '- Windows x64, Linux x64/ARM64, macOS Intel/Apple Silicon bundles include Node and production dependencies.\n' +
-  '- Windows installs to `%LOCALAPPDATA%\\codegraph\\current`; Linux/macOS use `~/.codegraph` and `~/.local/bin/codegraph`.\n' +
-  '- Download the installer, matching archive and SHA256SUMS for offline installation. Unix offline installation requires CODEGRAPH_VERSION.\n' +
-  '- CLI/MCP mixed Fortran/Python/C++ verification and platform management acceptance are required before publication.\n' +
-  '- MIT license, original CodeGraph credits and third-party license notices are retained.\n\n' +
-  'See [README](https://github.com/shiysent-ctrl/codegraph-fortran#readme) for installation and known extraction limits.\n');
+fs.writeFileSync(path.join(output, 'RELEASE-NOTES.md'), notes);
 console.log(JSON.stringify({ output, targets, published: false }, null, 2));

@@ -1,165 +1,153 @@
 # CodeGraph：Fortran 扩展版
 
-本项目基于 [Colby Mchenry 及贡献者维护的 CodeGraph](https://github.com/colbymchenry/codegraph)，保留其多语言代码索引、CLI 和 MCP 能力，并增加 Fortran 语法、符号提取、调用关系解析及验证样例。适用于 Fortran、Python、C++ 及混合语言项目。
+本项目基于 [Colby Mchenry 及贡献者维护的 CodeGraph](https://github.com/colbymchenry/codegraph)，保留其多语言代码索引、CLI 和 MCP 能力，并增加 Fortran 支持。Fortran、Python、C++ 及混合语言项目都使用同一个 `codegraph` 命令和 `.codegraph` 项目索引。
 
-本仓库由 [shiysent-ctrl](https://github.com/shiysent-ctrl) 独立维护扩展和发行。上游提供了本项目的代码图谱架构、索引与查询实现、命令行及 MCP 基础，感谢原作者和所有贡献者；Fortran 语法也依赖社区维护的 tree-sitter 项目。来源和许可证见下文。
+本 fork 由 [shiysent-ctrl](https://github.com/shiysent-ctrl) 独立维护。感谢上游作者、贡献者，以及 tree-sitter-fortran 和 Node.js 社区。版权、许可证和第三方声明见文末。
 
-## 先确认你使用的是哪个版本
+## 下载与安装
 
-标准入口对应 **v1.6.1-fortran.3，Windows x64 预览版**。请从该版本的 Release 页面取得安装包，或从当前 `main` 构建；安装前确认下载页包含 ZIP、安装脚本和校验文件。
+当前发行：**[v1.6.1-fortran.4 多平台预览版](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.4)**。在 Release 页面展开 **Assets** 下载；仓库中的安装脚本负责下载和校验二进制包，脚本本身不包含程序。运行发行包无需另外安装 Node.js、npm 或 Fortran 编译器。
 
-| 获取方式 | CLI 入口 | 默认项目索引 | MCP 配置名 |
-| --- | --- | --- | --- |
-| `v1.6.1-fortran.3` 或当前 `main` 构建 | `codegraph`（Windows 启动器为 `codegraph.cmd`） | `.codegraph` | `codegraph` |
-| 已发布的 `v1.6.1-fortran.2` 预览包 | `codegraph-fortran.cmd` | `.codegraph-fortran` | `codegraph-fortran` |
+| 系统 | 对应安装包 | 安装脚本 |
+| --- | --- | --- |
+| Windows x64 | codegraph-fortran-win32-x64.zip | install.ps1 |
+| Linux x64（glibc） | codegraph-fortran-linux-x64.tar.gz | install.sh |
+| Linux ARM64（glibc） | codegraph-fortran-linux-arm64.tar.gz | install.sh |
+| macOS Intel | codegraph-fortran-darwin-x64.tar.gz | install.sh |
+| macOS Apple Silicon | codegraph-fortran-darwin-arm64.tar.gz | install.sh |
 
-[旧版 v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 保持原样，仍采用独立命令和索引目录。新包的 `fortran-release.json` 记录版本、`cliName: "codegraph"`、`indexDirectory: ".codegraph"` 和源码提交信息。已有可用环境时，先用独立二进制目录和临时项目验证，再决定是否切换。
+Release 还提供统一的 SHA256SUMS。Windows ARM64 和 Alpine/musl 不在本版支持范围。
 
-## 源码中的管理渠道修改（尚未随新 Release 发布）
+### Windows
 
-当前源码的 Windows 安装布局改为与上游独立安装器一致：`%LOCALAPPDATA%\codegraph\current`，并将其 `bin` 目录加入用户 PATH。`CODEGRAPH_INSTALL_DIR` 可覆盖安装根目录。重新打开终端后，在项目工作区运行 `codegraph init` 即可完成初次索引。
+从上述 Release 下载 install.ps1，在下载目录打开 PowerShell，执行：
 
-`codegraph install` 配置客户端，必要的 CLI 安装使用本 fork 的安装器；`codegraph upgrade` 和 `codegraph upgrade --check` 只查询本 fork 的兼容发行，包括预览版；`codegraph uninstall` 沿用标准安装目录和 `codegraph` 配置名称，npm 移除只针对本 fork 的包标识。升级先校验并验收新包，再替换可识别的旧程序目录，项目索引不会被删除。
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+~~~
 
-安装器默认允许替换标准安装位置中的 CodeGraph 程序。自选 `-Destination` 时默认拒绝覆盖，确需替换可加 `-Replace`；临时验收使用 `-NoPath`，避免更改用户 PATH。本 fork 尚未发布 npm 包，不会通过 npm 渠道回退安装上游版本。Linux/macOS 的新构建与安装流程见下文，公开资产仍未更新。
+默认安装到 %LOCALAPPDATA%\codegraph\current，并把其中的 bin 目录加入用户 PATH。**重新打开终端**后确认：
 
-**已发布的 v1.6.1-fortran.3 资产保持原样**，仍使用下方的独立目录和手动配置流程，且管理命令仍含旧渠道逻辑。要使用本节修改，需从当前源码构建；旧 Release 不会因源码修改自动更新。
+~~~powershell
+codegraph --version
+Get-Command codegraph -All
+~~~
 
-## Linux 与 macOS（当前源码，尚未发布安装包）
+版本应为 1.6.1-fortran.4。如果调用到旧 npm 安装或其他目录中的程序，调整 PATH 顺序后再次确认。安装器允许替换标准位置中可识别的 CodeGraph 程序目录；它不初始化项目，也不自动修改客户端配置。
 
-Linux/macOS 沿用上游的 `~/.codegraph/versions/<版本>`，`~/.codegraph/current` 指向当前版本，全局命令链接为 `~/.local/bin/codegraph`。`CODEGRAPH_INSTALL_DIR` 和 `CODEGRAPH_BIN_DIR` 可覆盖路径。项目索引仍是 `.codegraph`。
+### Linux 与 macOS
 
-目前需要在对应平台从源码构建；不能从旧 v1.6.1-fortran.3 下载 Linux/macOS 包。在 Git、Node 24.x、npm 和 POSIX 工具可用的终端执行：
+下载对应 Release 的 install.sh，或执行以下命令下载到当前目录，再运行：
 
-```sh
-git clone --branch codex/fork-management https://github.com/shiysent-ctrl/codegraph-fortran.git
-cd codegraph-fortran
-npm ci
-npm run build
-target="$(node -p 'process.platform+"-"+process.arch')"
-npm pack "@colbymchenry/codegraph-$target@1.6.1" --pack-destination /tmp --silent
-node scripts/fortran/build-release.cjs --archive "/tmp/colbymchenry-codegraph-$target-1.6.1.tgz"
-node scripts/fortran/check-management-unix.cjs
-```
-
-上述命令选择包含这些修改的开发分支 `codex/fork-management`；对应安装包尚未随新 Release 发布。构建按运行系统和架构选择固定官方运行时，只复制 Node 与生产依赖，应用和语法来自本 fork；输出匹配平台的 tar.gz、SHA256SUMS、install.sh，不执行全局安装。验收脚本只使用临时 HOME 和项目。
-
-构建通过后，可在准备切换的机器上离线安装：
-
-```sh
-CODEGRAPH_VERSION="$(node -p 'require("./package.json").version')" sh ./install.sh \
-  --archive "./release/fortran/codegraph-fortran-$target.tar.gz" \
-  --checksum-file ./release/fortran/SHA256SUMS
+~~~sh
+curl -fL https://github.com/shiysent-ctrl/codegraph-fortran/releases/download/v1.6.1-fortran.4/install.sh -o install.sh
+CODEGRAPH_VERSION=v1.6.1-fortran.4 sh ./install.sh
 export PATH="$HOME/.local/bin:$PATH"
 codegraph --version
+command -v codegraph
+~~~
+
+安装器自动选择当前系统和架构。默认程序位于 ~/.codegraph/versions/v1.6.1-fortran.4，~/.codegraph/current 指向当前版本，全局命令为 ~/.local/bin/codegraph。这些目录与上游独立安装器一致。将上面的 PATH 设置写入所用 shell 的配置（例如 ~/.bashrc 或 ~/.zshrc），重新打开终端，并让 MCP 客户端继承该 PATH。
+
+### 离线安装与自选目录
+
+下载**同一 Release** 的安装脚本、对应平台安装包和 SHA256SUMS，放在同一目录。Windows 执行：
+
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .\codegraph-fortran-win32-x64.zip -ChecksumFile .\SHA256SUMS
+~~~
+
+Linux/macOS 执行，按实际平台替换安装包名：
+
+~~~sh
+CODEGRAPH_VERSION=v1.6.1-fortran.4 sh ./install.sh \
+  --archive ./codegraph-fortran-linux-x64.tar.gz \
+  --checksum-file ./SHA256SUMS
+~~~
+
+Windows 可用 -Destination 自选程序目录；自选目录已存在时默认拒绝覆盖，替换已识别程序需要 -Replace。临时验收可加 -NoPath。Linux/macOS 可设置 CODEGRAPH_INSTALL_DIR 和 CODEGRAPH_BIN_DIR。两种安装器都先校验安装包、来源和 CLI/MCP 行为，再切换安装；常规操作直接使用默认目录即可。
+
+## 在项目中建立索引
+
+安装全局 CLI 后，进入自己的**源码项目目录**执行，无需使用安装器路径，也无需 Fortran 专用命令：
+
+~~~sh
 cd /path/to/your/project
 codegraph init
+codegraph status
+~~~
+
+Windows 同样执行 codegraph init，只需把 cd 路径换成实际项目路径。init 完成初次索引，在项目中建立 .codegraph；源码变更后执行：
+
+~~~sh
+codegraph index
+~~~
+
+无论 Fortran、C++ 还是 Python，默认目录和命令都相同。CODEGRAPH_DIR 仍可按上游规则显式覆盖索引位置。由旧版本切换时，停止旧版对该项目索引的写入，再用选定的新版本执行 codegraph index 重建。
+
+## 接入 MCP 客户端
+
+CLI 的安装和客户端的 MCP 配置是两个步骤。安装上述 CLI 后，可以交互选择客户端：
+
+~~~sh
 codegraph install
-```
+~~~
 
-将上述 PATH 设置写入所用 shell 的配置文件（如 ~/.bashrc 或 ~/.zshrc），并让 MCP 客户端继承该 PATH；也可使用安装目录中的 mcp-config.json/codex-mcp.toml 片段指定随包 Node。安装器不会修改 shell 配置或客户端。运行时无需系统 Node/npm 或 Fortran 编译器。
+例如，为 Codex CLI 写入全局配置：
 
-将来新 Release 包含对应平台资产后，可以从本 fork 下载 install.sh 再运行 `sh install.sh`；安装器和 `codegraph upgrade` 都选择本 fork 的兼容发行，包括预览版。标准的 `init`、`index`、`serve --mcp`、`install`、`upgrade`、`uninstall` 命令保持一致。安装先校验 SHA-256、来源与 CLI/MCP，再切换链接；失败保留原安装，保留前一个版本以支持运行中的升级。
+~~~sh
+codegraph install --target codex --location global --yes
+~~~
 
-Linux 目标使用官方 glibc 运行时，Alpine/musl 不在本轮范围。原生验收工作流覆盖四个 Unix 目标（Linux 在 Docker 内验收），本轮本地仅完成 Windows 回归及 Git Bash 的 shell 控制流检查，尚未执行 Linux/macOS 二进制。全部目标通过才合并发行资产，公开旧 tag 和安装包保持原样。
+其他客户端和配置选项见 codegraph install --help；项目级配置使用 --location local。配置名称沿用 codegraph，已有同名条目时检查并更新该条目。配置完成后重启客户端或 MCP 会话，并在查询时明确项目路径。
+
+也可使用安装目录中生成的 mcp-config.json 或 codex-mcp.toml 配置片段；它们指向随包 Node 和标准 CLI。Unix 片段通过 current 链接访问程序，升级后仍可使用。启动 MCP 的命令仍为 codegraph serve --mcp；安装器不会自行修改客户端配置。
+
+## 升级与卸载
+
+~~~sh
+codegraph upgrade --check
+codegraph upgrade
+codegraph uninstall
+~~~
+
+install、upgrade、uninstall 保留上游命令形式，发行查询和 CLI 安装指向**本 fork**。升级检查包含兼容的 Fortran 预览发行；升级校验新包后替换程序。本 fork 尚未提供 npm 发行，请使用这里的 Release 安装器；不会回退安装上游 npm 包。
+
+uninstall 交互选择客户端与全局/项目配置。--location local 只处理所选项目配置；全局卸载同时处理已识别的 fork 程序和命令入口。项目 .codegraph 索引不删除，Unix 的机器状态目录也保留。Windows 运行中的 Node 可能留下一个改名的运行时文件，命令会列出其路径，退出后可清理。
 
 ## 相对上游增加了什么
 
-- Fortran 文件识别和 tree-sitter WASM 语法加载。
+- Fortran 扩展名识别与 tree-sitter WASM 语法加载。
 - 模块、子模块、程序、函数、子程序、内部过程、派生类型、常量和接口等符号提取。
-- USE 导入及直接调用关系，名称按 Fortran 规则归一为小写，同时保留原源码和过程范围。
-- 固定格式首列 `C/c/*` 注释的等长解析处理，以及 CRLF、大写扩展名和混合语言验收样例。
+- USE 导入与直接调用关系；名称按 Fortran 规则归一为小写，保留原源码和过程范围。
+- 固定格式首列 C/c/* 注释的等长解析处理，以及 CRLF、大写扩展名和混合语言回归样例。
 
-标准入口保留 `codegraph init`、`codegraph index`、`codegraph status`、`codegraph serve --mcp` 等命令；所有支持的语言默认使用 `.codegraph`。`CODEGRAPH_DIR` 可按上游规则显式覆盖，目录和命令不随项目语言改变。
+本 fork 基于上游 1.6.1，不代表已同步上游当前 main 的全部更新。原有多语言索引、查询、CLI 和 MCP 接口继续保留；发行包使用 WASM 提取路径，**未包含上游 Rust 原生内核**，也禁用共享守护进程。
 
-## 下载 Windows x64 安装包
+## 验证范围与已知限制
 
-从 [v1.6.1-fortran.3 Release](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.3) 下载 `install.ps1`，在下载目录运行：
+发布工作流要求 Windows x64、Linux x64/ARM64、macOS Intel/Apple Silicon 五个原生平台全部通过构建、相关回归、临时混合项目 CLI/MCP 与安装管理验收。Linux 验收在对应架构的 Docker 容器中进行。结果可查看 [Fortran bundles 工作流](https://github.com/shiysent-ctrl/codegraph-fortran/actions/workflows/fortran-windows.yml)。
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-```
+Fortran 支持 .f、.f90、.f95、.f03、.f08、.for、.ftn、.fpp 及大写扩展名。固定格式续行和列宽、USE 重命名、复杂泛型接口、过程指针、动态分派、函数与数组下标歧义及宏展开仍有边界。完整 RHF 工程、完整 Fortran 标准、真实客户端界面切换和代理 A/B 性能不属于这套发行验收。静态代码关系不能代替编译器语义或数值正确性验证。
 
-脚本下载同一版本的 ZIP 和 `SHA256SUMS`，验证文件与 CLI/MCP 行为后安装。默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.3`；不会修改全局 CodeGraph、PATH、客户端或研究项目。已有目标目录不会覆盖，需要自选位置时加 `-Destination "D:\Tools\CodeGraph\1.6.1-fortran.3"`。运行使用随包 Node，无需另装 Node/npm 或 Fortran 编译器。
+## 旧版本说明
 
-离线安装请下载同一 Release 的全部三个文件：
+已发布的 [v1.6.1-fortran.3](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.3) 只有 Windows 包，采用 CodeGraphFortran 独立安装目录，管理命令仍含旧渠道逻辑。[v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 还采用 codegraph-fortran 命令和 .codegraph-fortran 索引。它们的 tag 和资产保留原样。
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .\codegraph-fortran-win32-x64.zip -ChecksumFile .\SHA256SUMS
-```
+从这些旧预览升级，请先按本页安装 .4，确认 codegraph --version 和客户端指向新版，再重建选定项目索引。旧包不会随源码更新自动变化，也不要通过旧包的 upgrade 来获取本 fork 新版。
 
-安装后的标准命令和 MCP 接入见下文；自行维护或构建时使用下面的源码流程。
+## 从源码构建与维护
 
-## 获取并构建标准入口
+普通用户使用 Release 即可。维护者在**目标平台**使用 Git、Node.js 24.x（CI 固定 24.16.0）和 npm：
 
-当前源码构建目标为 **Windows x64、Linux x64/ARM64、macOS Intel/Apple Silicon**；已发布的 v1.6.1-fortran.3 仍只有 Windows 包。源码构建请使用 Git、Node.js **24.x**（CI 使用 `24.16.0`）和 npm；运行随包二进制使用自带 Node，无需 Fortran 编译器。
-
-在 PowerShell 中选择一个新的工作目录：
-
-```powershell
+~~~sh
 git clone https://github.com/shiysent-ctrl/codegraph-fortran.git
-Set-Location .\codegraph-fortran
+cd codegraph-fortran
 npm ci
 npm run build
-```
+~~~
 
-可运行与本扩展相关的回归测试：
-
-```powershell
-npx vitest run __tests__/fortran.test.ts __tests__/extraction.test.ts __tests__/grammar-wasm-bytes.test.ts __tests__/preload-languages.test.ts __tests__/cross-language-resolution.test.ts
-```
-
-随后下载固定的上游平台包并构建本 fork 的 ZIP：
-
-```powershell
-npm pack @colbymchenry/codegraph-win32-x64@1.6.1 --pack-destination .
-node scripts/fortran/build-release.cjs --archive .\colbymchenry-codegraph-win32-x64-1.6.1.tgz --output .\release\standard-preview
-```
-
-平台包用于复用 Node 和生产依赖；构建脚本先验证其固定 SHA-512，应用代码、提取器和语法来自本 fork 的构建结果。输出目录包含 `codegraph-fortran-win32-x64.zip`、`SHA256SUMS` 和 `install.ps1`。资产文件名中的 Fortran 用于标识发行来源，包内启动器为 `bin/codegraph.cmd`。若输出 ZIP 已存在，请选择新的输出目录，脚本会拒绝静默覆盖。
-
-这一步会在临时混合项目运行 CLI/MCP 验收，并将源码、依赖和语法来源记录保存到包内的 `fortran-release.json`，将验收结果保存为 `verification.json`。
-
-## 选择安装位置并运行
-
-从当前源码构建后，可在临时目录验收安装（不修改 PATH）：
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release\standard-preview\install.ps1 -Archive .\release\standard-preview\codegraph-fortran-win32-x64.zip -ChecksumFile .\release\standard-preview\SHA256SUMS -Destination "$env:TEMP\CodeGraphSourcePreview" -NoPath
-```
-
-该临时验收命令校验文件和 CLI/MCP 行为后生成配置片段，不初始化研究项目，不写客户端配置。正式使用源码安装器时，不加 `-Destination` 和 `-NoPath` 即沿用标准目录及用户 PATH；`ExecutionPolicy Bypass` 只作用于本次进程。
-
-使用选定二进制的完整路径，避免调用到 PATH 中的其他版本。请将项目路径替换为你明确选择的测试项目：
-
-```powershell
-$taskCodeGraph = "$env:TEMP\CodeGraphSourcePreview\bin\codegraph.cmd"
-& $taskCodeGraph --version
-& $taskCodeGraph init "D:\Research\MixedProject" --yes
-Set-Location "D:\Research\MixedProject"
-& $taskCodeGraph index
-& $taskCodeGraph status
-```
-
-将所选版本的 `bin` 目录配置到 PATH 后，可以直接使用 `codegraph`。默认索引目录是项目中的 `.codegraph`；将来切换已有项目时，应停止旧版写入并使用所选新版重建索引。
-
-### 接入 MCP
-
-安装目录生成 `mcp-config.json` 和 `codex-mcp.toml`。选择客户端支持的格式，将其中的 `codegraph` 配置加入客户端；已有同名条目时替换对应条目，重启 MCP 会话，并在查询中明确指定项目路径。
-
-配置使用包内 Node 和 CLI，不强制设置 `CODEGRAPH_DIR`。本预览包禁用共享守护进程。同一个项目索引应避免由不同版本同时写入。
-
-### 升级渠道
-
-本 fork 的安装和升级使用对应的源码构建或 fork Release 资产。继承的 `codegraph install`、`codegraph upgrade`、`codegraph uninstall` 仍沿用上游安装渠道，不能用于安装或升级本 fork 的发行包。上游 npm 包和上游安装脚本也不能代替本仓库的 Fortran 扩展构建。
-
-## 已验证范围与限制
-
-[标准命令修改的 Windows CI](https://github.com/shiysent-ctrl/codegraph-fortran/actions/runs/36985282479) 已通过构建、相关回归测试、混合项目 CLI/MCP 验收，以及 PowerShell 7 和 Windows PowerShell 5.1 的临时离线安装验收。相关回归测试共 725 项，其中 22 项针对 Fortran；混合验收覆盖 7 文件、31 节点、34 条边。实际客户端配置切换仍需在各用户环境验证。
-
-当前 Windows x64 发行包使用 WASM 提取路径，**未包含上游 Rust 原生内核**。本 README 的验证结果只对应本 fork；上游的性能基准、多平台支持及其他发行承诺请查阅其官方说明。
-
-Fortran 支持 `.f`、`.f90`、`.f95`、`.f03`、`.f08`、`.for`、`.ftn`、`.fpp` 及大写扩展名。固定格式续行和列宽、USE 重命名、复杂泛型接口、过程指针、动态分派、函数与数组下标歧义及宏展开仍有边界。Linux/macOS/ARM、完整 RHF 工程、完整 Fortran 标准及代理 A/B 性能尚未验证。代码图谱用于辅助源码阅读，其静态关系不等于编译器语义或数值正确性验证。
+构建方法、原生验收和发布步骤见 [FORTRAN.md](FORTRAN.md)，本版更新见 [FORTRAN-RELEASE.md](FORTRAN-RELEASE.md)。源码构建和临时验收不会安装到维护者的日常环境。
 
 ## 来源、致谢与许可证
 
@@ -175,6 +163,6 @@ Fortran 支持 `.f`、`.f90`、`.f95`、`.f03`、`.f08`、`.for`、`.ftn`、`.fp
 
 ## 维护与反馈
 
-使用问题和扩展建议请提交到 [本 fork 的 Issues](https://github.com/shiysent-ctrl/codegraph-fortran/issues)。提取器、语法、测试和发行脚本以本仓库为唯一维护源；向上游贡献修改时，另行向上游提交 PR。
+使用问题请提交到 [本 fork 的 Issues](https://github.com/shiysent-ctrl/codegraph-fortran/issues)。提取器、语法、测试和发行脚本以本仓库为维护源。向本 fork 的 main 合并或发布，不会自动合并到上游；向上游贡献需要另行提交 PR 并由上游审查。
 
-更详细的适配边界、构建和维护说明见 [FORTRAN.md](FORTRAN.md)。新版本发布通过 [Fortran bundles 工作流](.github/workflows/fortran-windows.yml) 执行，已发布版本和资产保持原样；后续发行同步更新版本、安装说明和下载指针，不覆盖旧版本资产。
+新发行使用 Fortran bundles 工作流，在 main 上手动开启 publish。每次选择新版本、保留旧 tag 和资产，发布成功后再更新下载指针。
