@@ -6,16 +6,14 @@
 
 ## 先确认你使用的是哪个版本
 
-截至 **2026-10-02**，标准命令兼容修改已合并到 `main`，尚未发布为新的安装包。
+标准入口对应 **v1.6.1-fortran.3，Windows x64 预览版**。请从该版本的 Release 页面取得安装包，或从当前 `main` 构建；安装前确认下载页包含 ZIP、安装脚本和校验文件。
 
 | 获取方式 | CLI 入口 | 默认项目索引 | MCP 配置名 |
 | --- | --- | --- | --- |
-| 从当前 `main` 构建 | `codegraph`（Windows 启动器为 `codegraph.cmd`） | `.codegraph` | `codegraph` |
+| `v1.6.1-fortran.3` 或当前 `main` 构建 | `codegraph`（Windows 启动器为 `codegraph.cmd`） | `.codegraph` | `codegraph` |
 | 已发布的 `v1.6.1-fortran.2` 预览包 | `codegraph-fortran.cmd` | `.codegraph-fortran` | `codegraph-fortran` |
 
-[已发布的预览包](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 保持原样，它与当前源码的入口约定不同。包版本仍为 `1.6.1-fortran.2`，因此识别本次构建还应查看 `fortran-release.json` 中的 `cliName: "codegraph"`、`indexDirectory: ".codegraph"` 和源码提交信息。
-
-**要使用标准 `codegraph` 入口，请按下面的源码构建流程操作。** 已有可用环境时，先用独立二进制目录和临时项目验证，再决定是否切换。构建本身不会安装新版、修改 PATH 或切换客户端。
+[旧版 v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 保持原样，仍采用独立命令和索引目录。新包的 `fortran-release.json` 记录版本、`cliName: "codegraph"`、`indexDirectory: ".codegraph"` 和源码提交信息。已有可用环境时，先用独立二进制目录和临时项目验证，再决定是否切换。
 
 ## 相对上游增加了什么
 
@@ -25,6 +23,24 @@
 - 固定格式首列 `C/c/*` 注释的等长解析处理，以及 CRLF、大写扩展名和混合语言验收样例。
 
 标准入口保留 `codegraph init`、`codegraph index`、`codegraph status`、`codegraph serve --mcp` 等命令；所有支持的语言默认使用 `.codegraph`。`CODEGRAPH_DIR` 可按上游规则显式覆盖，目录和命令不随项目语言改变。
+
+## 下载 Windows x64 安装包
+
+从 [v1.6.1-fortran.3 Release](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.3) 下载 `install.ps1`，在下载目录运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+脚本下载同一版本的 ZIP 和 `SHA256SUMS`，验证文件与 CLI/MCP 行为后安装。默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.3`；不会修改全局 CodeGraph、PATH、客户端或研究项目。已有目标目录不会覆盖，需要自选位置时加 `-Destination "D:\Tools\CodeGraph\1.6.1-fortran.3"`。运行使用随包 Node，无需另装 Node/npm 或 Fortran 编译器。
+
+离线安装请下载同一 Release 的全部三个文件：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .\codegraph-fortran-win32-x64.zip -ChecksumFile .\SHA256SUMS
+```
+
+安装后的标准命令和 MCP 接入见下文；自行维护或构建时使用下面的源码流程。
 
 ## 获取并构建标准入口
 
@@ -61,7 +77,7 @@ node scripts/fortran/build-release.cjs --archive .\colbymchenry-codegraph-win32-
 准备好切换或测试本次构建时，使用同一构建的 ZIP、校验文件和安装脚本，选择一个不存在的目标目录：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release\standard-preview\install.ps1 -Archive .\release\standard-preview\codegraph-fortran-win32-x64.zip -ChecksumFile .\release\standard-preview\SHA256SUMS -Destination "$env:LOCALAPPDATA\CodeGraphPreview\standard-cli"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release\standard-preview\install.ps1 -Archive .\release\standard-preview\codegraph-fortran-win32-x64.zip -ChecksumFile .\release\standard-preview\SHA256SUMS -Destination "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.3"
 ```
 
 安装脚本校验文件和 CLI/MCP 行为后生成配置片段。它不会修改全局 CodeGraph、PATH 或客户端，也不会初始化研究项目。现有目标目录不会被覆盖；`ExecutionPolicy Bypass` 只作用于本次进程。
@@ -69,7 +85,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release\standard-previ
 使用选定二进制的完整路径，避免调用到 PATH 中的其他版本。请将项目路径替换为你明确选择的测试项目：
 
 ```powershell
-$taskCodeGraph = "$env:LOCALAPPDATA\CodeGraphPreview\standard-cli\bin\codegraph.cmd"
+$taskCodeGraph = "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.3\bin\codegraph.cmd"
 & $taskCodeGraph --version
 & $taskCodeGraph init "D:\Research\MixedProject" --yes
 Set-Location "D:\Research\MixedProject"
@@ -113,4 +129,4 @@ Fortran 支持 `.f`、`.f90`、`.f95`、`.f03`、`.f08`、`.for`、`.ftn`、`.fp
 
 使用问题和扩展建议请提交到 [本 fork 的 Issues](https://github.com/shiysent-ctrl/codegraph-fortran/issues)。提取器、语法、测试和发行脚本以本仓库为唯一维护源；向上游贡献修改时，另行向上游提交 PR。
 
-更详细的适配边界、构建和维护说明见 [FORTRAN.md](FORTRAN.md)。新版本发布通过 [Fortran Windows 工作流](.github/workflows/fortran-windows.yml) 执行，已发布版本和资产保持原样；新的命令兼容修改需要选择新版本后再发布。
+更详细的适配边界、构建和维护说明见 [FORTRAN.md](FORTRAN.md)。新版本发布通过 [Fortran Windows 工作流](.github/workflows/fortran-windows.yml) 执行，已发布版本和资产保持原样；后续发行同步更新版本、安装说明和下载指针，不覆盖旧版本资产。

@@ -26,7 +26,7 @@ function walk(dir, prefix = '') {
 }
 async function build(archive, outputDirectory) {
   if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('第一版发行构建仅支持 Windows x64');
-  if (version !== '1.6.1-fortran.2') throw new Error('升级版本时同步验证器、安装入口和发行工作流');
+  if (version !== '1.6.1-fortran.3') throw new Error('升级版本时同步验证器、安装入口和发行工作流');
   archive = fs.realpathSync(archive);
   if (hash(archive, 'sha512', 'base64') !== integrity) throw new Error('官方平台包 SHA-512 不匹配');
   const output = outputDirectory ? path.resolve(outputDirectory) : path.join(root, 'release', 'fortran');
