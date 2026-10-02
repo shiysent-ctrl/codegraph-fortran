@@ -1,0 +1,160 @@
+name: Fortran bundles
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish all five tested platform bundles as a new prerelease
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'FORTRAN*.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'ui/package.json'
+      - 'src/**'
+      - '__tests__/fortran.test.ts'
+      - '__tests__/fork*.test.ts'
+      - '__tests__/install-sh-prune.test.ts'
+      - '__tests__/upgrade.test.ts'
+      - '__tests__/installer*.test.ts'
+      - '__tests__/remove-binary.test.ts'
+      - '__tests__/update-check.test.ts'
+      - '__tests__/fixtures/fortran/**'
+      - 'scripts/fortran/**'
+      - 'third_party/**'
+      - 'install.ps1'
+      - 'install.sh'
+      - '.github/workflows/fortran-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Fortran and extraction regression tests
+        run: npx vitest run __tests__/fortran.test.ts __tests__/extraction.test.ts __tests__/grammar-wasm-bytes.test.ts __tests__/preload-languages.test.ts __tests__/cross-language-resolution.test.ts __tests__/fork-distribution.test.ts __tests__/fork-unix-installer.test.ts __tests__/fork-unix-transaction.test.ts __tests__/fork-bundle-artifacts.test.ts __tests__/upgrade.test.ts __tests__/installer.test.ts __tests__/installer-targets.test.ts __tests__/remove-binary.test.ts __tests__/update-check.test.ts --maxWorkers 2 --minWorkers 1
+      - name: Get the fixed upstream runtime package
+        run: npm pack @colbymchenry/codegraph-win32-x64@1.6.1 --pack-destination "$env:RUNNER_TEMP" --silent
+      - name: Build and validate source bundle
+        run: node scripts/fortran/build-release.cjs --archive "$env:RUNNER_TEMP\colbymchenry-codegraph-win32-x64-1.6.1.tgz"
+      - name: Offline installer acceptance
+        run: ./install.ps1 -Archive ./release/fortran/codegraph-fortran-win32-x64.zip -ChecksumFile ./release/fortran/SHA256SUMS -Destination "$env:RUNNER_TEMP\Fortran Chinese 中文\bundle" -NoPath
+      - name: Windows PowerShell 5.1 installer acceptance
+        run: node scripts/fortran/check-powershell51.cjs
+      - name: Fork management acceptance
+        run: node scripts/fortran/check-management.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codegraph-fortran-win32-x64
+          path: release/fortran/*
+          if-no-files-found: error
+
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: linux-x64
+            os: linux
+          - runner: ubuntu-24.04-arm
+            target: linux-arm64
+            os: linux
+          - runner: macos-15-intel
+            target: darwin-x64
+            os: darwin
+          - runner: macos-15
+            target: darwin-arm64
+            os: darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: npm
+      - name: Native Linux build and acceptance in Docker
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          docker run --rm --init -v "$PWD:/workspace" -w /workspace node:24.16.0-bookworm sh -ec '
+            git config --global --add safe.directory /workspace
+            npm ci --no-audit --no-fund
+            npm run build
+            npx vitest run __tests__/fortran.test.ts __tests__/extraction.test.ts __tests__/grammar-wasm-bytes.test.ts __tests__/preload-languages.test.ts __tests__/cross-language-resolution.test.ts __tests__/fork-distribution.test.ts __tests__/fork-unix-installer.test.ts __tests__/fork-unix-transaction.test.ts __tests__/fork-bundle-artifacts.test.ts __tests__/upgrade.test.ts __tests__/installer.test.ts __tests__/installer-targets.test.ts __tests__/remove-binary.test.ts __tests__/update-check.test.ts __tests__/install-sh-prune.test.ts --maxWorkers 2 --minWorkers 1
+            target="linux-$(node -p process.arch)"
+            npm pack "@colbymchenry/codegraph-$target@1.6.1" --pack-destination /tmp --silent
+            node scripts/fortran/build-release.cjs --archive "/tmp/colbymchenry-codegraph-$target-1.6.1.tgz"
+            node scripts/fortran/check-management-unix.cjs
+          '
+      - name: Native macOS build and acceptance
+        if: matrix.os == 'darwin'
+        shell: bash
+        run: |
+          test "$(node -p 'process.platform+"-"+process.arch')" = "${{ matrix.target }}"
+          npm ci --no-audit --no-fund
+          npm run build
+          npx vitest run __tests__/fortran.test.ts __tests__/extraction.test.ts __tests__/grammar-wasm-bytes.test.ts __tests__/preload-languages.test.ts __tests__/cross-language-resolution.test.ts __tests__/fork-distribution.test.ts __tests__/fork-unix-installer.test.ts __tests__/fork-unix-transaction.test.ts __tests__/fork-bundle-artifacts.test.ts __tests__/upgrade.test.ts __tests__/installer.test.ts __tests__/installer-targets.test.ts __tests__/remove-binary.test.ts __tests__/update-check.test.ts __tests__/install-sh-prune.test.ts --maxWorkers 2 --minWorkers 1
+          npm pack "@colbymchenry/codegraph-${{ matrix.target }}@1.6.1" --pack-destination "$RUNNER_TEMP" --silent
+          node scripts/fortran/build-release.cjs --archive "$RUNNER_TEMP/colbymchenry-codegraph-${{ matrix.target }}-1.6.1.tgz"
+          node scripts/fortran/check-management-unix.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codegraph-fortran-${{ matrix.target }}
+          path: release/fortran/*
+          if-no-files-found: error
+
+  assemble:
+    needs: [windows, unix]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: codegraph-fortran-*
+          path: release/artifacts
+      - run: node scripts/fortran/assemble-release.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codegraph-fortran-release
+          path: release/fortran-all/*
+          if-no-files-found: error
+
+  publish:
+    needs: assemble
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.repository == 'shiysent-ctrl/codegraph-fortran' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: codegraph-fortran-release
+          path: release/fortran-all
+      - name: Publish new fork prerelease without overwriting previous releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          gh release create "v$version" release/fortran-all/*.zip release/fortran-all/*.tar.gz release/fortran-all/SHA256SUMS release/fortran-all/install.ps1 release/fortran-all/install.sh --target "$GITHUB_SHA" --title "v$version" --prerelease --notes-file release/fortran-all/RELEASE-NOTES.md

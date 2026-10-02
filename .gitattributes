@@ -1,0 +1,7 @@
+# Keep release scripts byte-stable across Windows and CI checkouts.
+install.ps1 text eol=lf
+install.sh text eol=lf
+scripts/fortran/** text eol=lf
+third_party/** text eol=lf
+# Preserve the official license verbatim, including its indentation.
+third_party/node/LICENSE -whitespace
