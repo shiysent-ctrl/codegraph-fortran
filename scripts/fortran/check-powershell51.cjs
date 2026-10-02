@@ -25,6 +25,11 @@ const installed = spawnSync(path.join(destination, 'node.exe'), ['--liftoff-only
   { env, encoding: 'utf8', timeout: 30000 });
 assert.equal(installed.status, 0, installed.stderr);
 assert.equal(installed.stdout.trim(), require('../../package.json').version);
+assert.ok(fs.existsSync(path.join(destination, 'bin/codegraph.cmd')));
+assert.ok(!fs.existsSync(path.join(destination, 'bin/codegraph-fortran.cmd')));
+const config = JSON.parse(fs.readFileSync(path.join(destination, 'mcp-config.json'), 'utf8'));
+assert.deepEqual(Object.keys(config.mcpServers), ['codegraph']);
+assert.ok(!Object.hasOwn(config.mcpServers.codegraph.env, 'CODEGRAPH_DIR'));
 assert.ok(fs.existsSync(path.join(destination, 'codex-mcp.toml')));
 console.log('Windows PowerShell 5.1 install, cleanup and launch: passed.');
 if (fs.realpathSync.native(parent).startsWith(tempRoot + path.sep) && path.basename(parent).startsWith('cgfortran-ps51-'))

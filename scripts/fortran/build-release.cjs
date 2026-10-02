@@ -24,12 +24,12 @@ function walk(dir, prefix = '') {
     return entry.isDirectory() ? walk(path.join(dir, entry.name), relative + '/') : [relative];
   });
 }
-async function build(archive) {
+async function build(archive, outputDirectory) {
   if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('第一版发行构建仅支持 Windows x64');
   if (version !== '1.6.1-fortran.2') throw new Error('升级版本时同步验证器、安装入口和发行工作流');
   archive = fs.realpathSync(archive);
   if (hash(archive, 'sha512', 'base64') !== integrity) throw new Error('官方平台包 SHA-512 不匹配');
-  const output = path.join(root, 'release', 'fortran');
+  const output = outputDirectory ? path.resolve(outputDirectory) : path.join(root, 'release', 'fortran');
   fs.mkdirSync(output, { recursive: true });
   const zip = path.join(output, 'codegraph-fortran-win32-x64.zip');
   if (fs.existsSync(zip)) throw new Error('发行 ZIP 已存在；请先核实或换用新的 checkout，禁止静默覆盖');
@@ -56,12 +56,10 @@ async function build(archive) {
   fs.cpSync(path.join(root, 'third_party'), path.join(bundle, 'third_party'), { recursive: true });
   fs.cpSync(path.join(root, '__tests__/fixtures/fortran'), path.join(bundle, 'validation/fixtures'), { recursive: true });
   for (const name of ['verify.cjs', 'write-config.cjs']) fs.copyFileSync(path.join(__dirname, name), path.join(bundle, 'validation', name));
-  fs.writeFileSync(path.join(bundle, 'bin/codegraph-fortran.cmd'), [
+  fs.writeFileSync(path.join(bundle, 'bin/codegraph.cmd'), [
     '@echo off', 'setlocal',
-    'if /I "%~1"=="upgrade" (echo Please rerun the fork install.ps1 for a new release. & exit /b 1)',
-    'if /I "%~1"=="install" (echo Use the generated MCP configuration files. & exit /b 1)',
-    'if /I "%~1"=="uninstall" (echo Remove the selected fork directory and its MCP entry manually. & exit /b 1)',
-    'set "CODEGRAPH_DIR=.codegraph-fortran"', 'set "CODEGRAPH_NO_DAEMON=1"',
+    // 沿用引擎默认 .codegraph 和显式 CODEGRAPH_DIR；所有原版子命令直接转交 CLI。
+    'set "CODEGRAPH_NO_DAEMON=1"',
     'set "CODEGRAPH_NO_UPDATE_CHECK=1"', 'set "CODEGRAPH_TELEMETRY=0"',
     '@"%~dp0..\\node.exe" --liftoff-only --disable-warning=ExperimentalWarning "%~dp0..\\lib\\dist\\bin\\codegraph.js" %*',
     'exit /b %errorlevel%', '',
@@ -69,7 +67,7 @@ async function build(archive) {
   const descriptor = { version, repository: 'shiysent-ctrl/codegraph-fortran',
     sourceCommit: run('git', ['rev-parse', 'HEAD']), sourceDirty: run('git', ['status', '--porcelain']).length > 0,
     runtimePackage: '@colbymchenry/codegraph-win32-x64@1.6.1', runtimePackageIntegrity: `sha512-${integrity}`,
-    nativeKernel: false, grammar: require('../../third_party/fortran/manifest.json'), files: {} };
+    nativeKernel: false, cliName: 'codegraph', indexDirectory: '.codegraph', grammar: require('../../third_party/fortran/manifest.json'), files: {} };
   for (const relative of walk(bundle)) descriptor.files[relative] = hash(path.join(bundle, relative));
   fs.writeFileSync(path.join(bundle, 'fortran-release.json'), JSON.stringify(descriptor, null, 2) + '\n');
   const result = await verify(bundle);
@@ -83,5 +81,10 @@ async function build(archive) {
     fs.rmSync(work, { recursive: true, maxRetries: 10, retryDelay: 200 });
 }
 const index = process.argv.indexOf('--archive');
-if (index < 0 || !process.argv[index + 1]) { console.error('用法：node scripts/fortran/build-release.cjs --archive <平台 tgz>'); process.exitCode = 1; }
-else build(process.argv[index + 1]).catch(error => { console.error(error.stack); process.exitCode = 1; });
+const outputIndex = process.argv.indexOf('--output');
+if (index < 0 || !process.argv[index + 1] || (outputIndex >= 0 && !process.argv[outputIndex + 1])) {
+  console.error('用法：node scripts/fortran/build-release.cjs --archive <平台 tgz> [--output <输出目录>]');
+  process.exitCode = 1;
+} else build(process.argv[index + 1], outputIndex >= 0 ? process.argv[outputIndex + 1] : undefined).catch(error => {
+  console.error(error.stack); process.exitCode = 1;
+});

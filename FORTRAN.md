@@ -1,70 +1,62 @@
-# CodeGraph Fortran 安装与使用
+# CodeGraph 的 Fortran 扩展
 
-本 fork 是 Fortran 提取器、语法资产、样例和发行脚本的单一维护源。当前版本为 **1.6.1-fortran.2，Windows x64 预发布版**。上游 CodeGraph 的其他语言继续使用 WASM 提取路径；本发行包没有原生 Rust 内核。它保留独立安装、启动器、索引和 MCP 配置，不修改全局 CodeGraph。
+本 fork 保留 CodeGraph 原有语言支持并增加 Fortran；Python、C++ 和混合项目使用同一套命令。CLI 为 `codegraph`，默认项目索引为 `.codegraph`，MCP 配置名为 `codegraph`。`CODEGRAPH_DIR` 仍可按上游规则显式覆盖。包名、仓库名和发行资产中的 Fortran 用于标识来源，不改变日常命令。
 
-## 安装
+## 当前状态
 
-从 [v1.6.1-fortran.2](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 下载 `install.ps1`，在 PowerShell 中执行：
+本次命令调整尚未发布；包版本仍为 `1.6.1-fortran.2`，不覆盖该版本已发布的资产。已有 [v1.6.1-fortran.2 Release](https://github.com/shiysent-ctrl/codegraph-fortran/releases/tag/v1.6.1-fortran.2) 仍使用旧的独立命令和索引目录，不能用它验证本次修改。
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-```
+构建不会安装新版、修改 PATH 或切换客户端。继续使用已经支持 Fortran 的旧版；准备好新发行版并明确决定切换后，再安装。当前 Windows x64 包沿用 WASM 提取路径，未包含上游 Rust 原生内核。
 
-上述调用只为本次进程允许执行脚本，不修改系统执行策略。默认目录为 `%LOCALAPPDATA%\CodeGraphFortran\1.6.1-fortran.2`，运行使用发行包自带 Node，不需要安装 Node、npm 或 Fortran 编译器。脚本从本 fork 的固定 Release 下载 ZIP，校验 SHA-256，再实际验证解析、索引、CLI 和 MCP。已有目录不会被覆盖；失败保留暂存诊断目录。
+## 只构建和验证
 
-指定位置：
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Destination "D:\Tools\CodeGraphFortran\1.6.1-fortran.2"
-```
-
-离线下载同一 Release 的 ZIP 和 `SHA256SUMS`，然后执行：
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive ".\codegraph-fortran-win32-x64.zip" -ChecksumFile ".\SHA256SUMS"
-```
-
-## 初始化项目并接入 MCP
-
-使用独立启动器初始化明确选择的 Fortran 项目：
-
-```powershell
-& "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2\bin\codegraph-fortran.cmd" init "D:\Research\FortranProject" --yes
-```
-
-索引保存在该项目的 `.codegraph-fortran`。后续使用相同启动器的 `index` 命令重建；不要对知识库根目录初始化，也不要用全局 `codegraph` 操作适配版索引。
-
-安装目录生成 `codex-mcp.toml` 和 `mcp-config.json`。将选定片段加入对应客户端配置，重启 MCP 会话，查询时明确传入项目的 `projectPath`。服务器名为 `codegraph-fortran`，禁用共享守护进程，以避免与上游同版本进程混用。脚本不会自动修改客户端。
-
-同一个索引只安排一个写入服务；多客户端需要同时运行时，应分别设置 `CODEGRAPH_DIR`。`install`、`upgrade` 和 `uninstall` 子命令在独立启动器中停用，避免触发上游安装流程；升级使用新的 fork 安装脚本和目录，回退时切回旧目录的 MCP 片段。
-
-## 验证与范围
-
-重新验收已安装 bundle：
-
-```powershell
-& "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2\node.exe" --liftoff-only "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2\validation\verify.cjs" "$env:LOCALAPPDATA\CodeGraphFortran\1.6.1-fortran.2"
-```
-
-验收使用临时项目，不访问研究工程。它验证模块、函数、子程序、内部过程、派生类型、常量、接口作用域、模块导入和不同大小写的直接调用，并检查完整子程序源码及真实 MCP search/explore。`verification.json` 保存构建时实际结果，`fortran-release.json` 记录源码 commit、语法来源和发行文件校验值。
-
-支持 `.f`、`.f90`、`.f95`、`.f03`、`.f08`、`.for`、`.ftn`、`.fpp` 及大写扩展名。图中名称统一为小写，原源码保留。`.f/.for/.ftn` 的首列 `C/c/*` 注释仅在解析时等长转换，保持字节和行列位置。
-
-本版不承诺完整 Fortran 语义：固定格式续行和列宽、USE 重命名、复杂泛型接口、过程指针、类型绑定动态分派、函数与数组下标歧义及预处理宏展开仍有边界。Linux/macOS/ARM、完整 RHF 工程以及上游要求的三种规模工程与代理 A/B 性能验证尚未完成，因此标为预发布版。
-
-## 维护与发行
-
-语法来自 [stadelmanma/tree-sitter-fortran](https://github.com/stadelmanma/tree-sitter-fortran/tree/2bc0220f34ca660ec9571c54ea57ed5363338de1)，MIT 许可证随包保存于 `third_party/fortran/LICENSE`。固定 commit、CLI、Emscripten 版本、ABI、构建命令及 WASM SHA-256 均在 `third_party/fortran/manifest.json`，不再发行来源不明的旧 WASM。
-
-源码构建需要 Node 22.5–24.x：
+在本 fork 工作目录中，使用 Node 22.5–24.x：
 
 ```powershell
 npm ci
 npm run build
-npx vitest run __tests__/fortran.test.ts
-node scripts/fortran/build-release.cjs --archive "D:\Downloads\colbymchenry-codegraph-win32-x64-1.6.1.tgz"
+npx vitest run __tests__/fortran.test.ts __tests__/extraction.test.ts __tests__/grammar-wasm-bytes.test.ts __tests__/preload-languages.test.ts __tests__/cross-language-resolution.test.ts
+node scripts/fortran/build-release.cjs --archive "D:\Downloads\colbymchenry-codegraph-win32-x64-1.6.1.tgz" --output "D:\Build\CodeGraphPreview"
 ```
 
-构建脚本只从 SHA-512 固定的官方平台包复用 Node 和生产依赖，应用代码和语法均使用本 fork 的构建结果，不复制上游原生内核。Node 和各生产依赖的许可文件随包保留。
+构建脚本校验固定官方平台包 SHA-512，只复用 Node 和生产依赖；应用代码、Fortran 提取器及语法来自本 fork。输出 ZIP、SHA256SUMS、安装脚本和验证收据；不安装到日常环境。验收在临时混合项目中实际运行标准命令，检查默认目录、Fortran/Python/C++ 符号和调用边以及 MCP initialize/search/explore。
 
-后续发行使用 GitHub Actions 的 **Fortran Windows** 工作流。它执行构建、Fortran 及相关回归测试、bundle 协议验收、离线安装测试，再发布本 fork 的预发布资产；不向上游 npm 命名空间发布。升级时同时更新包版本、安装入口、验证版本和语法来源记录，采用新安装目录。
+## 日常命令保持一致
+
+下面示例适用于将来明确切换到本版后的环境：
+
+```powershell
+codegraph init "D:\Research\MixedProject" --yes
+Set-Location "D:\Research\MixedProject"
+codegraph index
+codegraph status
+codegraph serve --mcp
+```
+
+命令不按语言另起名称；上述项目默认使用 `.codegraph`。在当前机器直接输入 `codegraph`，仍调用现有旧版。要选择一个已解压的测试构建而不修改 PATH，可以使用它的绝对路径 `D:\Build\Preview\bin\codegraph.cmd`。
+
+生成的 `mcp-config.json` 和 `codex-mcp.toml` 使用 `codegraph` 名称，指向所选构建自带 Node 和 CLI，不强制覆盖索引目录；不会自动修改客户端。将来切换时替换现有 `codegraph` 条目即可，不需另建 Fortran 专用 MCP。新版包暂时禁用共享守护进程，避免不同构建进程混用。
+
+## 安装与升级留到发布后
+
+仅在明确决定安装时，使用同一构建的安装脚本、ZIP 和 SHA256SUMS：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Archive .\codegraph-fortran-win32-x64.zip -ChecksumFile .\SHA256SUMS -Destination "D:\Tools\CodeGraphPreview"
+```
+
+安装脚本核实收据包含标准 CLI/索引约定，拒绝误用旧隔离版；已有目标目录不会覆盖。它不会修改全局 CodeGraph、PATH 或客户端。`install`、`upgrade`、`uninstall` 子命令仍转交原版 CLI；这些子命令的安装渠道仍沿用上游，不能用来升级本 fork 的发行包，本次也未运行它们。fork 升级使用对应的发行资产和安装脚本。
+
+新版默认与旧版使用同名索引，因此切换时应停止旧版写入，选定实际项目后用新版重建索引。不要在现有研究项目上测试未发布构建；临时项目足以验证命令和目录。
+
+## Fortran 支持与边界
+
+支持 `.f`、`.f90`、`.f95`、`.f03`、`.f08`、`.for`、`.ftn`、`.fpp` 及大写扩展名；模块、函数、子程序、内部过程、派生类型、常量、接口作用域、USE 导入与直接调用保留完整源码范围。名称归一为小写，源码保留。固定格式首列 C/c/* 注释在解析时等长转换，保持字节和行列位置。
+
+固定格式续行和列宽、USE 重命名、复杂泛型、过程指针、动态分派、函数与数组下标歧义及宏展开仍有边界。Linux/macOS/ARM、完整 RHF 工程、三种规模工程与代理 A/B 性能未验证；混合样例验证不等于完整语言语义或性能验证。
+
+语法来自 [stadelmanma/tree-sitter-fortran 的固定 MIT 源码](https://github.com/stadelmanma/tree-sitter-fortran/tree/2bc0220f34ca660ec9571c54ea57ed5363338de1)，许可证及 WASM 构建记录随包保存在 `third_party/fortran`。
+
+## 维护与发行
+
+本 fork 是提取器、语法、样例、发行脚本的单一维护源。知识库仅维护入口和说明。发布前需选择新版本，同步包、验证器、安装脚本和入口指针，再运行 **Fortran Windows** 工作流；旧 tag/资产保持原样。发布完成后才更新知识库入口的 Release、SHA-256，并将 `releaseAvailable` 改为 `true`。

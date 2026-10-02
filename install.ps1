@@ -58,6 +58,9 @@ try {
     $taskBundle = Join-Path $taskExpand 'codegraph-fortran-win32-x64'
     $taskDescriptor = Get-Content -LiteralPath (Join-Path $taskBundle 'fortran-release.json') -Raw | ConvertFrom-Json
     if ($taskDescriptor.version -ne $taskVersion -or $taskDescriptor.repository -ne $taskRepo) { throw 'Unexpected fork release identity.' }
+    if ($taskDescriptor.cliName -ne 'codegraph' -or $taskDescriptor.indexDirectory -ne '.codegraph' -or -not (Test-Path -LiteralPath (Join-Path $taskBundle 'bin\codegraph.cmd'))) {
+        throw 'This checkout requires the rebuilt standard-codegraph bundle; published isolation bundles are not compatible.'
+    }
     & (Join-Path $taskBundle 'node.exe') --liftoff-only --disable-warning=ExperimentalWarning (Join-Path $taskBundle 'validation\verify.cjs') $taskBundle
     if ($LASTEXITCODE -ne 0) { throw 'Fortran CLI/MCP verification failed.' }
     & (Join-Path $taskBundle 'node.exe') (Join-Path $taskBundle 'validation\write-config.cjs') $taskBundle $taskTarget
@@ -71,7 +74,7 @@ try {
         Remove-Item -LiteralPath $taskResolvedStage -Recurse -Force
     }
     Write-Output "Installed: $taskTarget"
-    Write-Output "CLI: $(Join-Path $taskTarget 'bin\codegraph-fortran.cmd')"
+    Write-Output "CLI: $(Join-Path $taskTarget 'bin\codegraph.cmd')"
     Write-Output 'MCP configuration snippets were generated; no client configuration was changed.'
 } catch {
     Write-Warning "Installation failed. Diagnostics retained in: $taskStage"

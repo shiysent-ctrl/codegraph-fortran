@@ -9,10 +9,20 @@ const os = require('node:os');
 const assert = require('node:assert/strict');
 const { spawnSync, spawn } = require('node:child_process');
 const crypto = require('node:crypto');
-const manifest = { indexDirectory: '.codegraph-fortran' };
+const manifest = { indexDirectory: '.codegraph' };
 const fixtureRoot = fs.existsSync(path.join(__dirname, 'fixtures')) ? path.join(__dirname, 'fixtures') : path.resolve(__dirname, '../../__tests__/fixtures/fortran');
 const env = { ...process.env, CODEGRAPH_TELEMETRY: '0', CODEGRAPH_NO_UPDATE_CHECK: '1',
-  CODEGRAPH_NO_DAEMON: '1', CODEGRAPH_DIR: manifest.indexDirectory };
+  CODEGRAPH_NO_DAEMON: '1' };
+// 测试默认目录时清除继承的覆盖值；启动器本身仍遵循原版环境变量规则。
+for (const key of Object.keys(env)) if (key.toUpperCase() === 'CODEGRAPH_DIR') delete env[key];
+function launcher(bundle, command, cwd) {
+  const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/c', 'codegraph ' + command], {
+    cwd, env: { ...env, PATH: path.join(bundle, 'bin') + path.delimiter + process.env.PATH },
+    encoding: 'utf8', timeout: 60000, maxBuffer: 8 * 1024 * 1024,
+  });
+  if (result.error || result.status !== 0) throw new Error(result.error?.message || result.stderr || result.stdout);
+  return result.stdout;
+}
 
 function runtime(bundle) { return path.join(bundle, process.platform === 'win32' ? 'node.exe' : 'node'); }
 function run(bundle, args, cwd) {
@@ -63,7 +73,12 @@ async function mcp(bundle, project) {
     const explored = await request('tools/call', { name: 'codegraph_explore', arguments: { query: 'UpdateField', projectPath: project, maxFiles: 4 } });
     assert.ok(explored.result && !explored.result.isError && !explored.error, JSON.stringify(explored));
     assert.match(JSON.stringify(explored.result), /end subroutine UpdateField/i);
-    return { initialize: true, search: true, explore: true };
+    for (const [query, target] of [['python_entry', 'python_helper'], ['cpp_entry', 'cpp_helper']]) {
+      const mixed = await request('tools/call', { name: 'codegraph_explore', arguments: { query, projectPath: project, maxFiles: 2 } });
+      assert.ok(mixed.result && !mixed.result.isError && !mixed.error, JSON.stringify(mixed));
+      assert.match(JSON.stringify(mixed.result), new RegExp(target));
+    }
+    return { initialize: true, search: true, explore: true, python: true, cpp: true };
   } finally {
     for (const entry of pending.values()) clearTimeout(entry.timer);
     pending.clear();
@@ -78,6 +93,9 @@ async function verify(bundle) {
   bundle = fs.realpathSync(bundle);
   const receipt = JSON.parse(fs.readFileSync(path.join(bundle, 'fortran-release.json'), 'utf8'));
   assert.equal(receipt.version, '1.6.1-fortran.2');
+  assert.equal(receipt.cliName, 'codegraph');
+  assert.equal(receipt.indexDirectory, '.codegraph');
+  assert.ok(!fs.existsSync(path.join(bundle, 'bin/codegraph-fortran.cmd')));
   for (const [relative, expected] of Object.entries(receipt.files)) {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(bundle, relative))).digest('hex');
     assert.equal(actual, expected, `发行文件校验失败：${relative}`);
@@ -91,6 +109,8 @@ async function verify(bundle) {
     for (const name of fs.readdirSync(fixtureRoot)) {
       fs.copyFileSync(path.join(fixtureRoot, name), path.join(project, name));
     }
+    fs.writeFileSync(path.join(project, 'mixed.py'), 'def python_helper():\n    return 1\n\ndef python_entry():\n    return python_helper()\n');
+    fs.writeFileSync(path.join(project, 'mixed.cpp'), 'int cpp_helper() { return 1; }\nint cpp_entry() { return cpp_helper(); }\n');
     // CRLF 单独复制一份外部子程序，以验证换行不会改变符号位置。
     fs.writeFileSync(path.join(project, 'windows.f90'), 'subroutine WindowsLine()\r\ncall UPDATEFIELD()\r\nend subroutine WindowsLine\r\n');
     fs.writeFileSync(path.join(project, 'codegraph.json'), JSON.stringify({ exclude: ['probe.cjs', 'db.cjs'] }));
@@ -128,26 +148,37 @@ const {TreeSitterExtractor}=require(${JSON.stringify(path.join(dist, 'extraction
 })().catch(e=>{console.error(e);process.exitCode=1});
 `);
     run(bundle, [parserProbe], project);
-    const cli = path.join(bundle, 'lib/dist/bin/codegraph.js');
-    run(bundle, [cli, 'init', project, '--yes'], project);
+    assert.equal(launcher(bundle, '--version', project).trim(), receipt.version);
+    launcher(bundle, 'init . --yes', project);
+    assert.ok(fs.existsSync(path.join(project, '.codegraph/codegraph.db')));
+    assert.ok(!fs.existsSync(path.join(project, '.codegraph-fortran')));
+    launcher(bundle, 'index', project);
     const dbProbe = path.join(project, 'db.cjs');
     fs.writeFileSync(dbProbe, `
 const assert=require('node:assert/strict'); const {DatabaseSync}=require('node:sqlite');
 const db=new DatabaseSync(${JSON.stringify(path.join(project, manifest.indexDirectory, 'codegraph.db'))},{readOnly:true});
-const files=db.prepare('SELECT path,errors FROM files').all(); assert.equal(files.length,5); assert.ok(files.every(f=>!f.errors));
+const files=db.prepare('SELECT path,errors FROM files').all(); assert.equal(files.length,7); assert.ok(files.every(f=>!f.errors));
 const edges=db.prepare("SELECT s.name source,t.name target,e.kind FROM edges e JOIN nodes s ON s.id=e.source JOIN nodes t ON t.id=e.target").all();
-for(const [source,target] of [['compute','advance'],['advance','updatefield'],['advance','localstep'],['localstep','updatefield'],['updatefield','energy'],['legacy','updatefield'],['windowsline','updatefield']])
+for(const [source,target] of [['compute','advance'],['advance','updatefield'],['advance','localstep'],['localstep','updatefield'],['updatefield','energy'],['legacy','updatefield'],['windowsline','updatefield'],['python_entry','python_helper'],['cpp_entry','cpp_helper']])
  assert.ok(edges.some(e=>e.kind==='calls'&&e.source===source&&e.target===target),source+' -> '+target);
 assert.ok(edges.some(e=>e.kind==='imports'&&e.source==='compute'&&e.target==='fieldengine'));
 console.log(JSON.stringify({files:files.length,nodes:db.prepare('SELECT COUNT(*) n FROM nodes').get().n,edges:edges.length})); db.close();
 `);
     const counts = JSON.parse(run(bundle, [dbProbe], project).trim());
-    const context = run(bundle, [cli, 'context', 'UpdateField', '--max-nodes', '6'], project);
+    const context = launcher(bundle, 'context UpdateField --max-nodes 6', project);
     assert.match(context, /end subroutine UpdateField/i);
+    assert.match(launcher(bundle, 'context python_entry --max-nodes 4', project), /python_helper/);
+    assert.match(launcher(bundle, 'context cpp_entry --max-nodes 4', project), /cpp_helper/);
+    const configDir = path.join(project, 'config-preview'); fs.mkdirSync(configDir);
+    run(bundle, [path.join(bundle, 'validation/write-config.cjs'), configDir, bundle], project);
+    const config = JSON.parse(fs.readFileSync(path.join(configDir, 'mcp-config.json'), 'utf8'));
+    assert.deepEqual(Object.keys(config.mcpServers), ['codegraph']);
+    assert.ok(!Object.hasOwn(config.mcpServers.codegraph.env, 'CODEGRAPH_DIR'));
+    assert.match(fs.readFileSync(path.join(configDir, 'codex-mcp.toml'), 'utf8'), /\[mcp_servers\.codegraph\]/);
     const protocol = await mcp(bundle, project);
     success = true;
     return { passed: true, ...counts, parser: true, sourceRanges: true, caseInsensitive: true,
-      fixedFormSample: true, fixedFormComments: true, crlf: true, scopes: true, releaseIntegrity: true, mcp: protocol };
+      fixedFormSample: true, fixedFormComments: true, crlf: true, scopes: true, releaseIntegrity: true, cliName: 'codegraph', indexDirectory: '.codegraph', mixedLanguages: ['fortran', 'python', 'cpp'], mcpConfig: true, mcp: protocol };
   } finally {
     // 删除范围仅限本次 mkdtemp 创建的测试目录，失败则保留用于诊断。
     if (success && fs.realpathSync.native(project).startsWith(tempRoot + path.sep)

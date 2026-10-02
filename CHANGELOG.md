@@ -19,7 +19,7 @@ and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New Features
 
 - Fortran modules, routines and direct calls can now be indexed and explored with complete routine source.
-- Windows users can install this fork alongside CodeGraph with a separate launcher, index and MCP configuration.
+- The Fortran extension uses the standard `codegraph` commands, `.codegraph` project index and `codegraph` MCP name while retaining existing language support.
 
 
 ### Fixes

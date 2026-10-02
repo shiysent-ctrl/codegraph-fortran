@@ -1,17 +1,11 @@
 ### Highlights
 
-- Fortran modules, routines, derived types and direct calls can be searched and explored with complete routine source.
-- Windows x64 users can install this fork alongside an existing CodeGraph installation without changing PATH or client configuration.
-- The installer generates independent Codex TOML and MCP JSON configuration snippets and verifies CLI/MCP behavior before completing installation.
-
-Use the attached `install.ps1`; it downloads the fixed ZIP from this fork and checks `SHA256SUMS`. For offline installation, download all three assets and follow [FORTRAN.md](https://github.com/shiysent-ctrl/codegraph-fortran/blob/main/FORTRAN.md).
+- The Fortran extension uses the standard `codegraph` commands, `.codegraph` index and `codegraph` MCP name.
+- Existing languages and mixed Fortran, Python and C++ projects continue to use the same CLI and MCP.
+- Building and verifying a preview does not install it or switch an existing CodeGraph environment.
 
 ### Preview scope
 
-This is a Windows x64 prerelease. Linux/macOS/ARM, full RHF projects, complete fixed-form rules and agent A/B performance validation have not been certified. The bundle uses WASM extraction for all languages and does not include the upstream native kernel. Keep existing installations and use the separate `.codegraph-fortran` index.
+These command changes are not yet in a published release. Choose a new version before publishing; existing release assets are never overwritten. Windows x64 only; the bundle uses WASM extraction and does not include the upstream native kernel. Linux/macOS/ARM, full RHF projects, complete fixed-form rules and agent A/B performance remain unverified.
 
-The Fortran WASM is built from a pinned MIT-licensed source revision; its license and build receipt ship in the bundle.
-
-### Fixes
-
-- Windows PowerShell 5.1 now decodes the installer correctly and completes cleanup without reporting a failure after a successful installation.
+Before switching an existing project, stop the previous version's writers and rebuild its index using the selected new version. Fork installations and upgrades use this fork's release assets; the inherited CLI installation commands still target upstream channels. See [FORTRAN.md](https://github.com/shiysent-ctrl/codegraph-fortran/blob/main/FORTRAN.md).
