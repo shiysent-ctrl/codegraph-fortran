@@ -9,7 +9,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "codegraph-fortran": "./dist/bin/codegraph.js"
+    "codegraph": "./dist/bin/codegraph.js"
   },
   "files": [
     "dist",

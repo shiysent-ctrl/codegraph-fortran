@@ -1,6 +1,6 @@
 # CodeGraph Fortran
 
-Windows x64 Fortran fork with an isolated installer and MCP configuration.
+CodeGraph with added Fortran support and the standard `codegraph` CLI, `.codegraph` index and `codegraph` MCP name. These command changes are not in a published release; building does not install or replace an existing CodeGraph.
 
 **Install and use: [FORTRAN.md](FORTRAN.md).** The source, fixtures and release workflow in this repository are the single maintenance source. The upstream npm package does not contain this fork's Fortran support.
 
